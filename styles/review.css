@@ -1,0 +1,414 @@
+:root {
+  color-scheme: light;
+  --ds-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  --ds-font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+
+  --ds-bg: #ffffff;
+  --ds-bg-subtle: #f6f8fa;
+  --ds-fg: #1f2328;
+  --ds-fg-muted: #59636e;
+  --ds-border: #d1d9e0;
+  --ds-accent: #0969da;
+
+  --ds-add-bg: #e6ffec;
+  --ds-add-gutter: #ccffd8;
+  --ds-add-fg: #1a7f37;
+  --ds-del-bg: #ffebe9;
+  --ds-del-gutter: #ffd7d5;
+  --ds-del-fg: #d1242f;
+
+  --ds-minimap-bg: #f6f8fa;
+  --ds-minimap-text: rgba(31, 35, 40, 0.22);
+  --ds-minimap-add: #1f883d;
+  --ds-minimap-del: #cf222e;
+  --ds-minimap-add-bg: rgba(31, 136, 61, 0.18);
+  --ds-minimap-del-bg: rgba(207, 34, 46, 0.16);
+  --ds-minimap-viewport: rgba(9, 105, 218, 0.12);
+  --ds-minimap-viewport-border: rgba(9, 105, 218, 0.45);
+
+  /* Syntax: GitHub light */
+  --ds-syn-comment: #59636e;
+  --ds-syn-keyword: #cf222e;
+  --ds-syn-string: #0a3069;
+  --ds-syn-constant: #0550ae;
+  --ds-syn-function: #6639ba;
+  --ds-syn-type: #953800;
+  --ds-syn-tag: #116329;
+  --ds-syn-regex: #116329;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ds-bg: #0d1117;
+  --ds-bg-subtle: #151b23;
+  --ds-fg: #e6edf3;
+  --ds-fg-muted: #9198a1;
+  --ds-border: #3d444d;
+  --ds-accent: #4493f8;
+
+  --ds-add-bg: rgba(46, 160, 67, 0.15);
+  --ds-add-gutter: rgba(63, 185, 80, 0.3);
+  --ds-add-fg: #3fb950;
+  --ds-del-bg: rgba(248, 81, 73, 0.1);
+  --ds-del-gutter: rgba(248, 81, 73, 0.3);
+  --ds-del-fg: #f85149;
+
+  --ds-minimap-bg: #010409;
+  --ds-minimap-text: rgba(230, 237, 243, 0.2);
+  --ds-minimap-add: #3fb950;
+  --ds-minimap-del: #f85149;
+  --ds-minimap-add-bg: rgba(63, 185, 80, 0.2);
+  --ds-minimap-del-bg: rgba(248, 81, 73, 0.2);
+  --ds-minimap-viewport: rgba(68, 147, 248, 0.14);
+  --ds-minimap-viewport-border: rgba(68, 147, 248, 0.5);
+
+  /* Syntax: GitHub dark */
+  --ds-syn-comment: #9198a1;
+  --ds-syn-keyword: #ff7b72;
+  --ds-syn-string: #a5d6ff;
+  --ds-syn-constant: #79c0ff;
+  --ds-syn-function: #d2a8ff;
+  --ds-syn-type: #ffa657;
+  --ds-syn-tag: #7ee787;
+  --ds-syn-regex: #7ee787;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--ds-bg);
+  color: var(--ds-fg);
+  font: 13px/1.4 var(--ds-font-ui);
+  overflow: hidden;
+}
+
+a {
+  color: var(--ds-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* Header */
+
+.ds-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+  height: 40px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ds-border);
+  background: var(--ds-bg-subtle);
+  white-space: nowrap;
+}
+
+.ds-back {
+  flex: none;
+  padding: 3px 8px;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  color: var(--ds-fg);
+  background: var(--ds-bg);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ds-back:hover {
+  text-decoration: none;
+  border-color: var(--ds-fg-muted);
+}
+
+.ds-file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--ds-font-mono);
+  font-size: 13px;
+}
+
+.ds-dir {
+  color: var(--ds-fg-muted);
+}
+
+.ds-name {
+  font-weight: 600;
+}
+
+.ds-renamed {
+  margin-left: 8px;
+  color: var(--ds-fg-muted);
+  font-family: var(--ds-font-ui);
+  font-size: 12px;
+}
+
+.ds-badge {
+  margin-left: 8px;
+  padding: 0 7px;
+  border: 1px solid var(--ds-border);
+  border-radius: 999px;
+  color: var(--ds-fg-muted);
+  font-family: var(--ds-font-ui);
+  font-size: 12px;
+}
+
+.ds-stats {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  font-family: var(--ds-font-mono);
+  font-weight: 600;
+}
+
+.ds-additions {
+  color: var(--ds-add-fg);
+}
+
+.ds-deletions {
+  color: var(--ds-del-fg);
+}
+
+.ds-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+  flex: none;
+  color: var(--ds-fg-muted);
+  font-size: 12px;
+}
+
+.ds-revisions {
+  font-family: var(--ds-font-mono);
+}
+
+.ds-brand {
+  font-weight: 600;
+  color: var(--ds-fg);
+  letter-spacing: 0.01em;
+}
+
+.ds-message {
+  flex: none;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ds-border);
+  color: var(--ds-fg-muted);
+}
+
+.ds-message[data-kind="error"] {
+  color: var(--ds-del-fg);
+}
+
+/* Code area */
+
+.ds-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.ds-scroller {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  outline: none;
+}
+
+.ds-code {
+  --ds-num-width: calc(var(--ds-digits) * 1ch + 16px);
+  --ds-gutter-width: calc(var(--ds-num-width) * 2 + 20px);
+  width: calc(var(--ds-gutter-width) + var(--ds-columns) * 1ch + 32px);
+  min-width: 100%;
+  font: 12px var(--ds-font-mono);
+  line-height: var(--ds-line-height);
+}
+
+.ds-chunk {
+  content-visibility: auto;
+}
+
+.ds-line {
+  display: flex;
+  height: var(--ds-line-height);
+  white-space: pre;
+}
+
+.ds-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  display: flex;
+  flex: none;
+  width: var(--ds-gutter-width);
+  background: var(--ds-bg);
+  color: var(--ds-fg-muted);
+  user-select: none;
+}
+
+.ds-num {
+  width: var(--ds-num-width);
+  padding: 0 8px;
+  text-align: right;
+}
+
+.ds-sign {
+  width: 20px;
+  text-align: center;
+  border-left: 1px solid var(--ds-border);
+}
+
+.ds-text {
+  flex: 1;
+  padding-right: 32px;
+}
+
+.ds-add {
+  background: var(--ds-add-bg);
+}
+
+.ds-add .ds-gutter {
+  background: linear-gradient(var(--ds-add-gutter), var(--ds-add-gutter)), var(--ds-bg);
+  color: var(--ds-fg);
+}
+
+.ds-add .ds-sign {
+  color: var(--ds-add-fg);
+}
+
+.ds-del {
+  background: var(--ds-del-bg);
+}
+
+.ds-del .ds-gutter {
+  background: linear-gradient(var(--ds-del-gutter), var(--ds-del-gutter)), var(--ds-bg);
+  color: var(--ds-fg);
+}
+
+.ds-del .ds-sign {
+  color: var(--ds-del-fg);
+}
+
+/* Minimap */
+
+.ds-minimap {
+  position: relative;
+  flex: none;
+  width: 96px;
+  border-left: 1px solid var(--ds-border);
+  background: var(--ds-minimap-bg);
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.ds-minimap canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.ds-minimap-viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: var(--ds-minimap-viewport);
+  border-top: 1px solid var(--ds-minimap-viewport-border);
+  border-bottom: 1px solid var(--ds-minimap-viewport-border);
+  pointer-events: none;
+  will-change: transform;
+}
+
+.ds-minimap.ds-dragging {
+  cursor: grabbing;
+}
+
+/* Syntax highlighting (Prism token classes) */
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--ds-syn-comment);
+}
+
+.token.keyword,
+.token.important,
+.token.atrule,
+.token.rule,
+.token.selector .token.combinator {
+  color: var(--ds-syn-keyword);
+}
+
+.token.string,
+.token.char,
+.token.attr-value,
+.token.template-string,
+.token.url {
+  color: var(--ds-syn-string);
+}
+
+.token.number,
+.token.boolean,
+.token.constant,
+.token.property,
+.token.attr-name,
+.token.symbol,
+.token.builtin,
+.token.operator.arrow,
+.token.key {
+  color: var(--ds-syn-constant);
+}
+
+.token.function,
+.token.method,
+.token.selector,
+.token.title {
+  color: var(--ds-syn-function);
+}
+
+.token.class-name,
+.token.namespace,
+.token.variable,
+.token.parameter {
+  color: var(--ds-syn-type);
+}
+
+.token.tag,
+.token.regex,
+.token.inserted {
+  color: var(--ds-syn-tag);
+}
+
+.token.deleted {
+  color: var(--ds-del-fg);
+}
+
+.token.bold {
+  font-weight: 600;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.punctuation,
+.token.tag .token.punctuation {
+  color: inherit;
+}
+
+.token.template-punctuation,
+.token.interpolation-punctuation {
+  color: var(--ds-syn-string);
+}

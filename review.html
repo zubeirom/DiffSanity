@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DiffSanity</title>
+    <link rel="icon" href="icons/icon-32.png" />
+    <link rel="stylesheet" href="review.css" />
+    <script src="review.js" defer></script>
+  </head>
+  <body>
+    <header class="ds-header">
+      <a id="ds-back" class="ds-back" title="Back to the pull request on GitHub">← Back to GitHub</a>
+      <div class="ds-file" aria-label="File under review">
+        <span id="ds-dir" class="ds-dir"></span><strong id="ds-name" class="ds-name"></strong>
+        <span id="ds-renamed" class="ds-renamed" hidden></span>
+        <span id="ds-status" class="ds-badge" hidden></span>
+      </div>
+      <div class="ds-stats">
+        <span id="ds-additions" class="ds-additions"></span>
+        <span id="ds-deletions" class="ds-deletions"></span>
+      </div>
+      <div class="ds-meta">
+        <a id="ds-pr" class="ds-pr"></a>
+        <span id="ds-revisions" class="ds-revisions"></span>
+        <span class="ds-brand" title="DiffSanity — bring sanity back to GitHub diffs">DiffSanity</span>
+      </div>
+    </header>
+    <div id="ds-message" class="ds-message" role="status" hidden></div>
+    <main class="ds-main">
+      <div id="ds-scroller" class="ds-scroller" tabindex="0" aria-label="File contents"></div>
+      <div id="ds-minimap" class="ds-minimap" aria-hidden="true"></div>
+    </main>
+  </body>
+</html>
