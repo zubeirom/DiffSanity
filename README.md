@@ -48,6 +48,8 @@ Ctrl/⌘-click the button to open the review in a background tab.
 | `npm run e2e` | Loads `dist/` in Playwright's Chromium against real public PRs and saves screenshots to `docs/screenshots/`. First run: `npx playwright install chromium` |
 | `npm run package` | Builds and zips `dist/` into `release/diffsanity-<version>.zip` for the Chrome Web Store and Edge Add-ons. Bump `version` in both `manifest.json` and `package.json` first |
 
+Contributing (people or AI agents): read [AGENTS.md](AGENTS.md) for the rules, code style, testing and release process.
+
 **Branding.** `assets/icon.png` (512 px) is the source for the extension icons in `icons/` (16/32/48/128 px; the 128 px icon follows the Chrome Web Store's 96 px artwork with 16 px padding). `assets/logo.png` is the logo with the wordmark. The GitHub button uses an inline SVG in `src/content/injectButton.ts`.
 
 ## Architecture
