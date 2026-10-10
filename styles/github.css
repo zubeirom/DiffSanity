@@ -1,23 +1,24 @@
-/* Button injected into GitHub file headers. Uses Primer CSS variables so it follows GitHub's theme. */
+/* Button injected into GitHub file headers. Styled like Primer's small "invisible" icon buttons
+   (GitHub's own copy / expand buttons next to it), using Primer variables so it follows the theme. */
 .diffsanity-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex: none;
-  width: 24px;
-  height: 22px;
-  margin: 0 6px;
+  width: 28px;
+  height: 28px;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--borderColor-default, var(--color-border-default, #d1d9e0));
+  border: 0;
   border-radius: 6px;
-  background: var(--bgColor-default, var(--color-canvas-default, #ffffff));
+  background: transparent;
   color: var(--fgColor-muted, var(--color-fg-muted, #59636e));
   vertical-align: middle;
   cursor: pointer;
 }
 
 .diffsanity-button:hover {
-  border-color: var(--fgColor-muted, var(--color-fg-muted, #59636e));
+  background: var(--control-transparent-bgColor-hover, var(--color-action-list-item-default-hover-bg, rgba(208, 215, 222, 0.32)));
   color: var(--fgColor-default, var(--color-fg-default, #1f2328));
 }
 

@@ -101,7 +101,7 @@ All selectors live in `src/content/github.ts` (and the commit regexes in `src/sh
 | Rename | link `title`/text `old → new` | link text `old → new` |
 | Deleted | `data-file-deleted="true"` | inferred from a 404 on the head side |
 | Anchor (for "Back") | `data-anchor` | `href="#diff-…"` |
-| Button placement | end of `.file-info` | after the `h3` |
+| Button placement | end of `.file-info` | end of the `h3`'s parent (after GitHub's copy / expand icons) |
 | Commits | `[data-url*="commit_oid"]` / `[src*="commit_oid"]`, then `script[type="application/json"]`, then `.file-header a[href*="/blob/<sha>/"]`, then the full page HTML | same sources |
 | Theme | `html[data-color-mode]` (`auto` resolves via `prefers-color-scheme`) | same |
 | Diff line (`<anchor>R12` / `<anchor>L7`) | `td[id]` (line-number cells) | `td[data-line-anchor]` (code cell) |

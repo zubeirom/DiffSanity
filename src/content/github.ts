@@ -60,8 +60,9 @@ function reactHeader(link: HTMLAnchorElement): FileHeader | null {
   if (!path) return null;
   return {
     header,
-    target: heading,
-    position: 'afterend',
+    // The heading's parent holds the file name and GitHub's icon buttons (copy, expand); join that group.
+    target: heading.parentElement ?? heading,
+    position: heading.parentElement ? 'beforeend' : 'afterend',
     path,
     oldPath: renamed?.oldPath,
     status: renamed ? 'renamed' : undefined,

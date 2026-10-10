@@ -31,8 +31,12 @@ const CLASSIC = `
 // Shape of the React "new files changed" header.
 const REACT = `
 <div class="DiffFileHeader-module__diff-file-header--abc">
-  <h3 class="DiffFileHeader-module__file-name--x"><a href="#diff-ddd">lib/util.py</a></h3>
-  <button data-file-path="lib/util.py">Expand all lines</button>
+  <div class="d-flex flex-shrink-0"><button>Collapse file</button></div>
+  <div class="d-flex DiffFileHeader-module__file-path-section--y">
+    <h3 class="DiffFileHeader-module__file-name--x"><a href="#diff-ddd">lib/util.py</a></h3>
+    <button>Copy file name</button>
+    <button data-file-path="lib/util.py">Expand all lines</button>
+  </div>
 </div>`;
 
 beforeEach(() => {
@@ -52,11 +56,13 @@ describe('findFileHeaders', () => {
     expect(files[0].target.classList.contains('file-info')).toBe(true);
   });
 
-  it('reads React headers', () => {
+  it('reads React headers and places the button after the file name icons', () => {
     document.body.innerHTML = REACT;
     const [file] = findFileHeaders();
-    expect(file).toMatchObject({ path: 'lib/util.py', anchor: 'diff-ddd', position: 'afterend' });
-    expect(file.target.tagName).toBe('H3');
+    expect(file).toMatchObject({ path: 'lib/util.py', anchor: 'diff-ddd', position: 'beforeend' });
+    expect(file.target).toBe(document.querySelector('h3')!.parentElement);
+    injectButtons(() => {});
+    expect(file.target.lastElementChild!.className).toBe('diffsanity-button');
   });
 
   it('ignores headings that are not file headers', () => {
