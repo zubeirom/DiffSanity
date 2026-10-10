@@ -26,24 +26,11 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-async function openModal(page, buttonSelector = '.diffsanity-button') {
-  await page.locator(buttonSelector).first().click();
-  const frameElement = await page.waitForSelector('dialog.diffsanity-modal[open] iframe', { timeout: 10_000 });
-  const frame = await frameElement.contentFrame();
-  await frame.waitForSelector('.ds-line, .ds-message[data-kind="error"]', { timeout: 30_000 });
-  return frame;
-}
-
-async function openTab(context, page, buttonSelector = '.diffsanity-button') {
-  const [review] = await Promise.all([
-    context.waitForEvent('page'),
-    page.locator(buttonSelector).first().click({ modifiers: ['ControlOrMeta'] }),
-  ]);
+async function openReview(context, page, buttonSelector = '.diffsanity-button') {
+  const [review] = await Promise.all([context.waitForEvent('page'), page.locator(buttonSelector).first().click()]);
   await review.waitForSelector('.ds-line, .ds-message[data-kind="error"]', { timeout: 30_000 });
   return review;
 }
-
-const modalCount = (page) => page.locator('dialog.diffsanity-modal').count();
 
 const profile = await mkdtemp(path.join(tmpdir(), 'diffsanity-e2e-'));
 await mkdir(SCREENSHOTS, { recursive: true });
@@ -68,94 +55,29 @@ try {
   });
   await page.locator('.file-header[data-path]').first().screenshot({ path: path.join(SCREENSHOTS, 'github-button.png') });
 
-  const modal = await openModal(page);
-  await check('modal renders the whole file with changes', async () => {
-    const lines = await modal.locator('.ds-line').count();
-    const changes = await modal.locator('.ds-add, .ds-del').count();
+  const review = await openReview(context, page);
+  await check('review page renders the whole file with changes', async () => {
+    const lines = await review.locator('.ds-line').count();
+    const changes = await review.locator('.ds-add, .ds-del').count();
     assert(lines > changes && changes > 0, `${lines} lines, ${changes} changed`);
-    assert(await modal.locator('#ds-back').isHidden(), '"Back to GitHub" shown in the modal');
-    assert(await modal.locator('#ds-close').isVisible(), 'no close button');
+    assert((await review.title()).endsWith('· DiffSanity'), `title "${await review.title()}"`);
   });
   await check('line numbers on both sides', async () => {
-    const numbers = await modal.locator('.ds-line:not(.ds-add):not(.ds-del) .ds-num').first().textContent();
-    assert(Number(numbers) > 0, `first number "${numbers}"`);
+    const numbers = await review.locator('.ds-line:not(.ds-add):not(.ds-del) .ds-num').first().textContent();
+    assert(numbers === '1' || Number(numbers) > 0, `first number "${numbers}"`);
   });
   await check('syntax highlighting', async () => {
-    assert((await modal.locator('.ds-text .token').count()) > 0, 'no tokens');
+    assert((await review.locator('.ds-text .token').count()) > 0, 'no tokens');
   });
   await check('minimap click scrolls the file', async () => {
-    const scroller = modal.locator('#ds-scroller');
-    const minimap = await modal.locator('#ds-minimap').boundingBox();
+    const scroller = review.locator('#ds-scroller');
+    const minimap = await review.locator('#ds-minimap').boundingBox();
     const before = await scroller.evaluate((el) => el.scrollTop);
-    await page.mouse.click(minimap.x + minimap.width / 2, minimap.y + minimap.height * 0.9);
+    await review.mouse.click(minimap.x + minimap.width / 2, minimap.y + minimap.height * 0.9);
     const after = await scroller.evaluate((el) => el.scrollTop);
     const max = await scroller.evaluate((el) => el.scrollHeight - el.clientHeight);
     assert(max === 0 || after !== before, `scrollTop ${before} → ${after}`);
     await scroller.evaluate((el) => (el.scrollTop = 0));
-  });
-  await check('GitHub page does not scroll behind the modal', async () => {
-    const overflow = await page.evaluate(() => getComputedStyle(document.documentElement).overflow);
-    assert(overflow === 'hidden', `overflow ${overflow}`);
-  });
-  await page.screenshot({ path: path.join(SCREENSHOTS, 'review-modal.png') });
-
-  await check('full screen toggles on and off', async () => {
-    const viewport = page.viewportSize();
-    await modal.locator('#ds-maximize').click();
-    let box = await page.locator('dialog.diffsanity-modal').boundingBox();
-    assert(Math.round(box.width) === viewport.width && Math.round(box.height) === viewport.height, `size ${box.width}×${box.height}`);
-    await modal.locator('#ds-maximize').click();
-    box = await page.locator('dialog.diffsanity-modal').boundingBox();
-    assert(box.width < viewport.width && box.height < viewport.height, `still full screen ${box.width}×${box.height}`);
-  });
-
-  await check('Esc inside the review closes the modal', async () => {
-    await modal.locator('#ds-scroller').press('Escape');
-    await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
-    const overflow = await page.evaluate(() => getComputedStyle(document.documentElement).overflow);
-    assert(overflow !== 'hidden', 'page scrolling still locked');
-  });
-
-  await check('backdrop click and close button close the modal', async () => {
-    await openModal(page);
-    await page.mouse.click(5, 450);
-    await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
-    const again = await openModal(page);
-    await again.locator('#ds-close').click();
-    await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
-  });
-
-  await check('reopening shows a single modal', async () => {
-    await openModal(page);
-    await page.keyboard.press('Escape'); // focus may be on the GitHub page
-    await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
-    await openModal(page, '.diffsanity-button >> nth=1');
-    assert((await modalCount(page)) === 1, `${await modalCount(page)} modals`);
-    await page.keyboard.press('Escape');
-    await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
-  });
-
-  await check('PR link in the modal navigates the GitHub tab, not the frame', async () => {
-    const frame = await openModal(page);
-    await Promise.all([page.waitForNavigation(), frame.locator('#ds-pr').click()]);
-    await page.waitForSelector('.diffsanity-button', { timeout: 30_000 });
-    assert(page.url().endsWith('/pull/340793/files'), `url ${page.url()}`);
-    assert((await modalCount(page)) === 0, 'modal still open');
-  });
-
-  await check('"Open in new tab" moves the review to a tab', async () => {
-    const frame = await openModal(page);
-    const [tab] = await Promise.all([context.waitForEvent('page'), frame.locator('#ds-new-tab').click()]);
-    await tab.waitForSelector('.ds-line');
-    await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
-    assert(await tab.locator('#ds-back').isVisible(), 'no "Back to GitHub" in the tab');
-    await tab.close();
-  });
-
-  const review = await openTab(context, page);
-  await check('Ctrl/⌘-click opens the review in a tab', async () => {
-    assert((await review.title()).endsWith('· DiffSanity'), `title "${await review.title()}"`);
-    assert((await modalCount(page)) === 0, 'modal opened as well');
   });
   await review.screenshot({ path: path.join(SCREENSHOTS, 'review-light.png') });
 
@@ -243,11 +165,11 @@ try {
   await page.goto(`${RENAME_PR}/files`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.diffsanity-button', { timeout: 30_000 });
   await check('rename shows the old path and diffs against it', async () => {
-    const renamed = await openModal(page, '.diffsanity-button[aria-label*="dataTransfer"]');
+    const renamed = await openReview(context, page, '.diffsanity-button[aria-label*="dataTransfer"]');
     const label = await renamed.locator('#ds-renamed').textContent();
     assert(label?.includes('renamed from'), `label "${label}"`);
     assert((await renamed.locator('.ds-line:not(.ds-add)').count()) > 0, 'no unchanged lines: old path not loaded');
-    await renamed.locator('#ds-close').click();
+    await renamed.close();
   });
 
   console.log('GitHub dark mode');
@@ -260,12 +182,6 @@ try {
     const color = await button.evaluate((el) => getComputedStyle(el).backgroundColor);
     assert(color !== 'rgb(255, 255, 255)', `background ${color}`);
     await page.locator('.file-header[data-path]').first().screenshot({ path: path.join(SCREENSHOTS, 'github-button-dark.png') });
-  });
-  await check('modal follows dark mode', async () => {
-    const frame = await openModal(page);
-    const background = await frame.evaluate(() => getComputedStyle(document.body).backgroundColor);
-    assert(background === 'rgb(13, 17, 23)', `background ${background}`);
-    await page.screenshot({ path: path.join(SCREENSHOTS, 'review-modal-dark.png') });
   });
 } finally {
   await context.close();
