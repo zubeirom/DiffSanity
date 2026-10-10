@@ -92,6 +92,45 @@ export function tokensToLines(tokens: TokenStream): string[] {
   return lines;
 }
 
+/** Languages where, as in Monaco's tokenizer, every capitalised identifier is a type name. */
+const TYPE_NAME_LANGUAGES = new Set(['javascript', 'typescript', 'jsx', 'tsx']);
+/** Tokens whose text is not code, so capitalised words inside them are left alone. */
+const NON_CODE_TOKENS = new Set(['comment', 'hashbang', 'string', 'char', 'regex', 'attr-value', 'plain-text']);
+const CAPITALISED_WORD = /(?<![\w$])[A-Z][\w$]*/g;
+const TYPE_NAME_CLASS = 'type-name';
+
+function splitTypeNames(text: string): Array<string | Prism.Token> {
+  const parts: Array<string | Prism.Token> = [];
+  let last = 0;
+  for (const match of text.matchAll(CAPITALISED_WORD)) {
+    if (match.index > last) parts.push(text.slice(last, match.index));
+    parts.push(new Prism.Token(TYPE_NAME_CLASS, match[0]));
+    last = match.index + match[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return parts;
+}
+
+/**
+ * Tags capitalised identifiers with a `type-name` class: plain text is split into type-name tokens
+ * and capitalised tokens (`Promise`, `String(…)`, `MAX_SIZE`) get it as an extra alias.
+ * Only themes that style `.type-name` (Azure DevOps) change; others look the same.
+ */
+function markTypeNames(stream: Prism.TokenStream): Prism.TokenStream {
+  const items = Array.isArray(stream) ? stream : [stream];
+  return items.flatMap((item) => {
+    if (typeof item === 'string') return splitTypeNames(item);
+    if (NON_CODE_TOKENS.has(item.type)) return [item];
+    if (typeof item.content !== 'string') {
+      item.content = markTypeNames(item.content);
+    } else if (/^[A-Z]/.test(item.content)) {
+      const aliases = Array.isArray(item.alias) ? item.alias : item.alias ? [item.alias] : [];
+      item.alias = [...aliases, TYPE_NAME_CLASS];
+    }
+    return [item];
+  });
+}
+
 /**
  * Highlights a whole file (so multi-line constructs are understood) and returns HTML per line,
  * aligned with `splitLines(content)`. Returns null when the language is unknown or the file is too large.
@@ -99,8 +138,9 @@ export function tokensToLines(tokens: TokenStream): string[] {
 export function highlightLines(lines: readonly string[], path: string): string[] | null {
   const language = languageForPath(path);
   const grammar = language ? Prism.languages[language] : undefined;
-  if (!grammar) return null;
+  if (!language || !grammar) return null;
   const text = lines.join('\n');
   if (text.length > MAX_HIGHLIGHT_CHARS) return null;
-  return tokensToLines(Prism.tokenize(text, grammar));
+  const tokens = Prism.tokenize(text, grammar);
+  return tokensToLines(TYPE_NAME_LANGUAGES.has(language) ? markTypeNames(tokens) : tokens);
 }

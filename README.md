@@ -10,7 +10,7 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
-- **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* (VS Code Dark+ colours) or *Azure DevOps Light* (VS Code Light+). Your choice is saved in the extension's local storage and applies to all review tabs.
+- **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
 
 Everything runs in your browser. There is no backend, no OAuth and no tokens.
 

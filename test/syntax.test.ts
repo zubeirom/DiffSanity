@@ -40,4 +40,20 @@ describe('highlightLines', () => {
   it('returns null for unknown languages', () => {
     expect(highlightLines(['x'], 'file.unknownext')).toBeNull();
   });
+
+  it('marks capitalised identifiers in JS/TS as type names, but not inside strings or comments', () => {
+    const [html] = highlightLines(
+      ["const r: Record<string, Promise<X>> = String(new Foo()); const $Bar = 'Hello'; // Note"],
+      'x.ts',
+    )!;
+    const typeNames = [...html.matchAll(/<span class="([^"]*)">([^<]*)<\/span>/g)]
+      .filter(([, classes]) => classes.split(' ').includes('type-name'))
+      .map(([, , text]) => text);
+    expect(typeNames).toEqual(['Record', 'Promise', 'X', 'String', 'Foo']);
+    expect(html).toContain('token builtin type-name'); // Promise keeps its builtin colour elsewhere
+  });
+
+  it('leaves other languages untouched', () => {
+    expect(highlightLines(['class Foo: pass'], 'x.py')![0]).not.toContain('type-name');
+  });
 });

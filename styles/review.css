@@ -78,14 +78,16 @@
 }
 
 /*
- * Azure DevOps themes. ADO shows files in the Monaco editor, so these use VS Code's Dark+ / Light+ colours.
+ * Azure DevOps themes. ADO shows files in the Monaco editor, so these use Monaco's vs-dark / vs colours
+ * (dark values sampled from ADO's file viewer). The Monaco token mapping is at the end of this file.
  * Optional slots (--ds-line-number, --ds-syn-number/property/variable) fall back to the closest base colour.
  */
 :root[data-theme="ado-dark"] {
   color-scheme: dark;
+  --ds-font-mono: Consolas, Menlo, Monaco, "Courier New", monospace;
   --ds-bg: #1e1e1e;
-  --ds-bg-subtle: #252526;
-  --ds-fg: #d4d4d4;
+  --ds-bg-subtle: #252423;
+  --ds-fg: #ffffff;
   --ds-fg-muted: #9d9d9d;
   --ds-border: #3c3c3c;
   --ds-accent: #3794ff;
@@ -109,24 +111,25 @@
   --ds-comment: #8957e5;
   --ds-minimap-comment: #c586c0;
 
-  --ds-syn-comment: #6a9955;
+  --ds-syn-comment: #13a10e;
   --ds-syn-keyword: #569cd6;
   --ds-syn-string: #ce9178;
   --ds-syn-constant: #569cd6;
   --ds-syn-number: #b5cea8;
   --ds-syn-property: #9cdcfe;
-  --ds-syn-variable: #9cdcfe;
-  --ds-syn-function: #dcdcaa;
-  --ds-syn-type: #4ec9b0;
+  --ds-syn-variable: var(--ds-fg);
+  --ds-syn-function: var(--ds-fg);
+  --ds-syn-type: #3dc9b0;
   --ds-syn-tag: #569cd6;
-  --ds-syn-regex: #d16969;
+  --ds-syn-regex: #b46695;
 }
 
 :root[data-theme="ado-light"] {
   color-scheme: light;
+  --ds-font-mono: Consolas, Menlo, Monaco, "Courier New", monospace;
   --ds-bg: #ffffff;
   --ds-bg-subtle: #f3f3f3;
-  --ds-fg: #1f1f1f;
+  --ds-fg: #000000;
   --ds-fg-muted: #616161;
   --ds-border: #e5e5e5;
   --ds-accent: #0078d4;
@@ -155,9 +158,9 @@
   --ds-syn-string: #a31515;
   --ds-syn-constant: #0000ff;
   --ds-syn-number: #098658;
-  --ds-syn-property: #001080;
-  --ds-syn-variable: #001080;
-  --ds-syn-function: #795e26;
+  --ds-syn-property: #0451a5;
+  --ds-syn-variable: var(--ds-fg);
+  --ds-syn-function: var(--ds-fg);
   --ds-syn-type: #267f99;
   --ds-syn-tag: #800000;
   --ds-syn-regex: #811f3f;
@@ -568,4 +571,14 @@ a:hover {
 .token.template-punctuation,
 .token.interpolation-punctuation {
   color: var(--ds-syn-string);
+}
+
+/* Monaco (Azure DevOps) colours capitalised identifiers as types, and arrows like other punctuation. */
+:root[data-theme^="ado-"] .token.type-name,
+:root[data-theme^="ado-"] .token.constant {
+  color: var(--ds-syn-type);
+}
+
+:root[data-theme^="ado-"] .token.operator.arrow {
+  color: inherit;
 }
