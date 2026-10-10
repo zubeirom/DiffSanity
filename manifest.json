@@ -25,6 +25,12 @@
     "https://raw.githubusercontent.com/*",
     "https://api.github.com/*"
   ],
+  "web_accessible_resources": [
+    {
+      "resources": ["review.html"],
+      "matches": ["https://github.com/*"]
+    }
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   }

@@ -1,5 +1,5 @@
 import { fromReviewSearch, pullRequestFilesUrl } from '../shared/githubContext';
-import type { FileStatus, ReviewRequest } from '../shared/types';
+import type { FileStatus, FrameMessage, Message, ReviewRequest } from '../shared/types';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { loadFileContents, LoadError } from './fileSource';
 import { Minimap } from './minimap';
@@ -8,6 +8,9 @@ import { highlightLines } from './syntax';
 
 /** Lines of context kept above the first change when the file opens. */
 const CONTEXT_ABOVE_FIRST_CHANGE = 4;
+
+/** True when shown in the modal on the GitHub page rather than in its own tab. */
+const embedded = window.parent !== window;
 
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
@@ -48,7 +51,35 @@ async function backToGitHub(request: ReviewRequest): Promise<void> {
   location.href = pullRequestFilesUrl(request);
 }
 
-function renderHeader(request: ReviewRequest): void {
+/** Modal toolbar: full screen toggle, open in a tab, close. The GitHub page owns the dialog itself. */
+function setUpModalActions(request: ReviewRequest): void {
+  const post = (message: FrameMessage) => window.parent.postMessage(message, request.origin);
+  const close = () => post({ type: 'diffsanity:frame', action: 'close' });
+
+  element('#ds-back').hidden = true;
+  element('#ds-window-actions').hidden = false;
+
+  const maximize = element<HTMLButtonElement>('#ds-maximize');
+  maximize.addEventListener('click', () => {
+    const maximized = maximize.getAttribute('aria-pressed') !== 'true';
+    maximize.setAttribute('aria-pressed', String(maximized));
+    maximize.title = maximized ? 'Exit full screen' : 'Full screen';
+    maximize.setAttribute('aria-label', maximize.title);
+    post({ type: 'diffsanity:frame', action: 'maximize', maximized });
+  });
+
+  element('#ds-new-tab').addEventListener('click', () => {
+    const message: Message = { type: 'diffsanity:open', request, background: false };
+    chrome.runtime.sendMessage(message).then(close, (error: unknown) => console.error('[DiffSanity]', error));
+  });
+
+  element('#ds-close').addEventListener('click', close);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !event.defaultPrevented) close();
+  });
+}
+
+function setUpBackLink(request: ReviewRequest): void {
   const back = element<HTMLAnchorElement>('#ds-back');
   back.href = pullRequestFilesUrl(request);
   back.addEventListener('click', (event) => {
@@ -56,6 +87,11 @@ function renderHeader(request: ReviewRequest): void {
     event.preventDefault();
     void backToGitHub(request);
   });
+}
+
+function renderHeader(request: ReviewRequest): void {
+  if (embedded) setUpModalActions(request);
+  else setUpBackLink(request);
 
   const slash = request.path.lastIndexOf('/');
   element('#ds-dir').textContent = slash >= 0 ? request.path.slice(0, slash + 1) : '';

@@ -55,7 +55,13 @@ export interface FileDiff {
 /** Messages exchanged between the content script, background worker and review page. */
 export type Message =
   | { type: 'diffsanity:open'; request: ReviewRequest; background: boolean }
+  | { type: 'diffsanity:reviewUrl'; request: ReviewRequest }
   | { type: 'diffsanity:fetchText'; url: string };
+
+/** `postMessage` from the review page, when shown in a modal, to the GitHub page hosting it. */
+export type FrameMessage =
+  | { type: 'diffsanity:frame'; action: 'close' }
+  | { type: 'diffsanity:frame'; action: 'maximize'; maximized: boolean };
 
 export interface FetchTextResponse {
   ok: boolean;
