@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DiffSanity",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Bring sanity back to GitHub diffs. Review a pull request file with full context, syntax highlighting and a minimap.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -14,7 +14,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://github.com/*"],
+      "matches": ["https://github.com/*", "https://*.ghe.com/*"],
       "js": ["content.js"],
       "css": ["github.css"],
       "run_at": "document_idle"
@@ -22,6 +22,7 @@
   ],
   "host_permissions": [
     "https://github.com/*",
+    "https://*.ghe.com/*",
     "https://raw.githubusercontent.com/*",
     "https://api.github.com/*"
   ],

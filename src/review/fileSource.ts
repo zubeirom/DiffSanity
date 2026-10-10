@@ -44,7 +44,7 @@ async function fetchJson<T>(url: string): Promise<T | undefined> {
   }
 }
 
-/** Fills in missing commits: first from the PR page itself, then from the public REST API (public repos only). */
+/** Fills in missing commits: first from the PR page itself, then from github.com's public REST API (public repos only; GHE.com has no anonymous API). */
 async function resolveRevisions(request: ReviewRequest): Promise<Required<Revisions>> {
   let revisions: Revisions = { baseSha: request.baseSha, headSha: request.headSha };
 

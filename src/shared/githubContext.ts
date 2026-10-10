@@ -109,7 +109,13 @@ export function fromReviewSearch(search: string): ReviewRequest | null {
   };
 }
 
-/** Origins DiffSanity is allowed to fetch from. Extend here (and in the manifest) for GitHub Enterprise. */
+/** GitHub Enterprise Cloud with data residency: one subdomain per enterprise, e.g. `https://octocorp.ghe.com`. */
+const GHE_COM_ORIGIN = /^https:\/\/[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.ghe\.com$/;
+
+/**
+ * Origins DiffSanity runs on and fetches from: github.com and GHE.com. Keep in sync with the manifest.
+ * Self-hosted GitHub Enterprise Server would need runtime host permissions, as its domains are not known up front.
+ */
 export function isAllowedOrigin(origin: string): boolean {
-  return origin === 'https://github.com';
+  return origin === 'https://github.com' || GHE_COM_ORIGIN.test(origin);
 }

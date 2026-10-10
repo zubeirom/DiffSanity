@@ -1,4 +1,4 @@
-import { isPullRequestFilesPage, parsePullRequestUrl } from '../shared/githubContext';
+import { isAllowedOrigin, isPullRequestFilesPage, parsePullRequestUrl } from '../shared/githubContext';
 import type { FetchTextResponse, GitHubLineInfo, GoToLineResponse, Message, PullRequestRef, ReviewRequest } from '../shared/types';
 import { extractPageRevisions, readLineInfo, resolveTheme, revealLine, type FileHeader } from './github';
 import { injectButtons } from './injectButton';
@@ -62,7 +62,7 @@ function showsPullRequest({ owner, repo, pr }: PullRequestRef): boolean {
   );
 }
 
-chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
+function handleMessage(message: Message, _sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void): boolean {
   switch (message.type) {
     case 'diffsanity:fetchText':
       fetchText(message.url).then(sendResponse);
@@ -84,11 +84,16 @@ chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) =
     default:
       return false;
   }
-});
+}
 
-// GitHub navigates client-side (Turbo / React router) and renders diffs progressively,
-// so DOM mutations are the reliable signal; navigation events just make it snappier.
-new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true });
-document.addEventListener('turbo:load', scheduleScan);
-window.addEventListener('popstate', scheduleScan);
-scan();
+// The manifest's `*.ghe.com` pattern also matches non-enterprise hosts (e.g. ghe.com itself), so check the origin before doing anything.
+if (isAllowedOrigin(location.origin)) {
+  chrome.runtime.onMessage.addListener(handleMessage);
+
+  // GitHub navigates client-side (Turbo / React router) and renders diffs progressively,
+  // so DOM mutations are the reliable signal; navigation events just make it snappier.
+  new MutationObserver(scheduleScan).observe(document.documentElement, { childList: true, subtree: true });
+  document.addEventListener('turbo:load', scheduleScan);
+  window.addEventListener('popstate', scheduleScan);
+  scan();
+}

@@ -14,6 +14,8 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
 - **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
 
+It works on **github.com** and on **GitHub Enterprise Cloud with data residency** (`<enterprise>.ghe.com`).
+
 Everything runs in your browser. There is no backend, no OAuth and no tokens.
 
 | GitHub file header | Review page (light) | Review page (dark) | Azure DevOps Dark |
@@ -88,7 +90,7 @@ flowchart LR
 ### How the file is retrieved
 
 1. **Commits.** The commits are read from the PR page when the button is clicked, from `start_commit_oid`/`base_commit_oid` and `end_commit_oid` in GitHub's lazy-load URLs. The base is the **merge base** (or the start of a selected commit range), which is what GitHub diffs against, not the base-branch tip. If they are missing, the review page fetches the PR page HTML itself. As a last resort it uses the public REST API (`pulls/N`, then `compare` for the merge base).
-2. **Contents.** Both files are fetched from `https://github.com/{owner}/{repo}/raw/{sha}/{path}`. Renamed files use the old path for the base. If the review page's own request is refused, it asks the content script in the GitHub tab to fetch the file from the page's origin.
+2. **Contents.** Both files are fetched from `{origin}/{owner}/{repo}/raw/{sha}/{path}`, where the origin is `https://github.com` or `https://<enterprise>.ghe.com`. Renamed files use the old path for the base. If the review page's own request is refused, it asks the content script in the GitHub tab to fetch the file from the page's origin.
 3. **Status.** A 404 on one side means the file was added or deleted. Binary files (any NUL character in the first 8 KB) are rejected with a message.
 
 ## GitHub DOM dependencies
@@ -127,15 +129,17 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 
 Verified by hand while signed in (React view): **+** opens GitHub's "Add a comment on line R116" box with the cursor in it, and thread markers match on a PR with comments.
 
+Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons appear on every file, the review page loads the whole file with the diff, minimap and revisions, and **+** appears on commentable lines.
+
 ## Known limitations
 
 - **You can only comment on lines GitHub shows in its diff.** That means changed lines and the context around them. This is GitHub's rule. Expand hidden lines on GitHub first if you need one of them, then switch back to the review tab and the **+** appears.
 - **Classic view, signed in:** opening the comment box there (`.js-add-line-comment`) is not verified, because signed-in users get the React view. If it fails, the line is still scrolled into view.
-- **Private repositories are not verified.** Requests include your GitHub cookies, with a same-origin fallback through the GitHub tab, but this has not been tested.
+- **Private repositories on github.com are not verified.** Requests include your GitHub cookies, with a same-origin fallback through the GitHub tab. This works for internal repositories on GHE.com.
 - The diff is computed locally with jsdiff, so hunks can occasionally be grouped differently from GitHub's. If a diff takes longer than 3 s, the file is shown as fully replaced, with a notice.
 - Commit detection on the React PR page relies on embedded JSON key names that have not been verified. If they are missing, it falls back to the PR HTML and then the public API. The API is rate limited and only works for public repos.
 - Very long lines are measured in `ch` units, so wide (CJK) characters can make the horizontal scroll width slightly short.
-- github.com only. GitHub Enterprise needs an origin added in `isAllowedOrigin` and in the manifest's `matches`/`host_permissions`.
+- **github.com and `*.ghe.com` only.** GitHub Enterprise Server (self-hosted, any domain) is not supported: each host would need to be granted at runtime through optional host permissions. On GHE.com the public REST API fallback for commits is not used.
 - Not implemented yet: writing comments inside the review page, a side-by-side view, j/k change navigation, a file tree, word-level highlighting and a native file viewer for images. The normalised `FileDiff` model and the separate renderer and minimap are meant to make these additive.
 
 ## Publishing

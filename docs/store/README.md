@@ -29,7 +29,7 @@ GitHub's "Files changed" view shows small slices of each file, which makes it ha
 
 Private by design: everything runs in your browser using your existing GitHub session. No servers, no tracking, no accounts.
 
-Works on github.com pull requests, in both the classic and the new review experience.
+Works on github.com and GitHub Enterprise Cloud (GHE.com) pull requests, in both the classic and the new review experience.
 ```
 
 ## Privacy practices (Chrome "Privacy" tab)
@@ -37,21 +37,21 @@ Works on github.com pull requests, in both the classic and the new review experi
 **Single purpose**
 
 ```text
-Open a GitHub pull request file in a focused, full-file diff review tab with syntax highlighting, a minimap and comment handoff back to GitHub.
+DiffSanity opens a file from a GitHub pull request in a focused review tab that shows the whole file as one diff, with syntax highlighting, a minimap and GitHub's review comments, so reviewers can read each change in context.
 ```
 
 **Host permission justification**
 
 ```text
-github.com: adds the DiffSanity button to pull request pages, reads the diff and review comments from the page, and places new comments into GitHub's own comment box.
-raw.githubusercontent.com: downloads the full old and new versions of the file under review.
-api.github.com: looks up which commits a public pull request compares when the page does not include them.
-All requests go only to GitHub, from the user's browser, using their existing GitHub session.
+github.com and *.ghe.com (GitHub Enterprise Cloud): adds the DiffSanity button to pull request pages, reads the diff and existing review comments from the page, downloads the full old and new versions of the file, and places new comments into GitHub's own comment box (nothing is posted automatically). *.ghe.com is needed because each enterprise has its own subdomain.
+raw.githubusercontent.com: where github.com serves those file downloads from.
+api.github.com: looks up which commits a public pull request compares, only when the page itself does not include them.
+All requests go only to GitHub, directly from the user's browser, using their existing GitHub session. No data is collected or sent anywhere else.
 ```
 
 **Remote code:** No, I am not using remote code. All scripts are bundled in the package.
 
-**Data usage:** tick nothing (no data collected). Certify all three statements (not sold, not used for unrelated purposes, not used for creditworthiness).
+**Data usage:** tick only **Website content** (the PR content is read and processed locally; Chrome requires declaring that). Leave everything else unticked. Certify all three statements (not sold, not used for unrelated purposes, not used for creditworthiness).
 
 ## Edge-specific
 

@@ -135,8 +135,24 @@ describe('review search parameters', () => {
     expect(parsed).toMatchObject({ baseSha: undefined, status: undefined, theme: undefined, sourceTabId: undefined });
   });
 
-  it('only allows github.com for now', () => {
+  it('allows github.com and GHE.com enterprise origins only', () => {
     expect(isAllowedOrigin('https://github.com')).toBe(true);
+    expect(isAllowedOrigin('https://octocorp.ghe.com')).toBe(true);
+    expect(isAllowedOrigin('https://my-corp1.ghe.com')).toBe(true);
+
     expect(isAllowedOrigin('http://github.com')).toBe(false);
+    expect(isAllowedOrigin('http://octocorp.ghe.com')).toBe(false);
+    expect(isAllowedOrigin('https://ghe.com')).toBe(false);
+    expect(isAllowedOrigin('https://a.b.ghe.com')).toBe(false);
+    expect(isAllowedOrigin('https://-corp.ghe.com')).toBe(false);
+    expect(isAllowedOrigin('https://octocorp.ghe.com:8443')).toBe(false);
+    expect(isAllowedOrigin('https://octocorp.ghe.com.evil.example')).toBe(false);
+    expect(isAllowedOrigin('https://github.example.com')).toBe(false);
+  });
+
+  it('accepts review requests from GHE.com', () => {
+    const parsed = fromReviewSearch('origin=https%3A%2F%2Foctocorp.ghe.com&owner=o&repo=r&pr=1&path=a.ts');
+    expect(parsed).toMatchObject({ origin: 'https://octocorp.ghe.com', owner: 'o', repo: 'r', pr: 1 });
+    expect(fromReviewSearch('origin=https%3A%2F%2Fevil.example&owner=o&repo=r&pr=1&path=a.ts')).toBeNull();
   });
 });

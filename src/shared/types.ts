@@ -11,7 +11,7 @@ export interface PullRequestRef {
 
 /** Everything the review page needs to reconstruct the review of one file. */
 export interface ReviewRequest {
-  /** Origin of the GitHub instance, e.g. `https://github.com`. Explicit so GitHub Enterprise can be added later. */
+  /** Origin of the GitHub instance: `https://github.com` or a GHE.com enterprise such as `https://octocorp.ghe.com`. */
   origin: string;
   owner: string;
   repo: string;
