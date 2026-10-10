@@ -9,8 +9,7 @@
     "watch": "node scripts/build.mjs --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "e2e": "node scripts/e2e.mjs",
-    "icons": "node scripts/icons.mjs"
+    "e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
     "diff": "^9.0.0",

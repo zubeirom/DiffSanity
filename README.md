@@ -1,8 +1,10 @@
+<p align="center"><img src="assets/logo.png" alt="DiffSanity" width="360" /></p>
+
 # DiffSanity
 
 **Bring sanity back to GitHub diffs.**
 
-DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull requests. It adds a **DiffSanity** button to every file on a PR's *Files changed* tab. The button opens that file in a focused review page:
+DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull requests. It adds a **DiffSanity** icon button to every file on a PR's *Files changed* tab. The button opens that file in a focused review page:
 
 - The **whole file** is shown, not just the diff hunks, as a unified diff with changes highlighted.
 - **Old and new line numbers** are shown side by side in the gutter.
@@ -42,7 +44,8 @@ Ctrl/⌘-click the button to open the review in a background tab.
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm test` | Unit tests (Vitest + jsdom) |
 | `npm run e2e` | Loads `dist/` in Playwright's Chromium against real public PRs and saves screenshots to `docs/screenshots/`. First run: `npx playwright install chromium` |
-| `npm run icons` | Regenerates `icons/*.png` (pure Node, no dependencies) |
+
+**Branding.** `assets/icon.png` (512 px) is the source for the extension icons in `icons/` (16/32/48/128 px; the 128 px icon follows the Chrome Web Store's 96 px artwork with 16 px padding). `assets/logo.png` is the logo with the wordmark. The GitHub button uses an inline SVG in `src/content/injectButton.ts`.
 
 ## Architecture
 
