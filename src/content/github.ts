@@ -7,7 +7,7 @@
  * - React ("new files changed experience"): `h3 > a[href^="#diff-"]` inside `DiffFileHeader-module__*`
  */
 import { extractRevisionsFromText, parseRenamedPath } from '../shared/githubContext';
-import type { FileStatus, Revisions, Theme } from '../shared/types';
+import type { FileStatus, GitHubLineInfo, GoToLineResponse, Revisions, Theme } from '../shared/types';
 
 export interface FileHeader {
   /** Root of the file header; used for idempotency checks. */
@@ -115,4 +115,106 @@ export function resolveTheme(doc: Document = document): Theme {
   if (mode === 'dark' || mode === 'light') return mode;
   // `auto` (or unknown): follow the OS, as GitHub does.
   return doc.defaultView?.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
+/*
+ * Diff lines. Both views identify a line by `<file anchor><key>`, where the key is `R<n>` (new file)
+ * or `L<n>` (old file):
+ * - React: on the code cell, `td[data-line-anchor="diff-…R12"]`; threads render inside it as `[data-marker-id]`.
+ * - classic: on the line-number cells, `td[id="diff-…R12"]`; threads follow the line in a `tr.inline-comments` row.
+ */
+const LINE_KEY = /^[LR]\d+$/;
+const FILE_ANCHOR = /^diff-[\w-]+$/;
+const REACT_THREAD = '[data-marker-id]';
+const CLASSIC_THREAD_ROW = 'tr.inline-comments';
+const CLASSIC_THREAD = '[id^="review-thread-or-comment-id-"]';
+const ADD_COMMENT_BUTTON = 'button[data-add-comment-button], .js-add-line-comment';
+const ADD_COMMENT_TIMEOUT_MS = 1000;
+
+function lineSelector(anchor: string): string {
+  return `[data-line-anchor^="${anchor}"], td[id^="${anchor}"]`;
+}
+
+function lineKey(cell: Element, anchor: string): string | undefined {
+  const id = cell.getAttribute('data-line-anchor') ?? cell.id;
+  const key = id.startsWith(anchor) ? id.slice(anchor.length) : '';
+  return LINE_KEY.test(key) ? key : undefined;
+}
+
+/** Prefers the new-file key, as GitHub does for unchanged lines. */
+function rowKey(row: Element, anchor: string): string | undefined {
+  const keys = [...row.querySelectorAll(lineSelector(anchor))].map((cell) => lineKey(cell, anchor)).filter(Boolean);
+  return keys.find((key) => key!.startsWith('R')) ?? keys[0];
+}
+
+/** Reads which lines of a file GitHub renders and where its review threads are. */
+export function readLineInfo(anchor: string, doc: Document = document): GitHubLineInfo {
+  const info: GitHubLineInfo = {
+    canComment: !!doc.querySelector('meta[name="user-login"]')?.getAttribute('content'),
+    lines: [],
+    threads: {},
+  };
+  if (!FILE_ANCHOR.test(anchor)) return info;
+  const scope = doc.getElementById(anchor) ?? doc;
+
+  const lines = new Set<string>();
+  for (const cell of scope.querySelectorAll(lineSelector(anchor))) {
+    const key = lineKey(cell, anchor);
+    if (key) lines.add(key);
+  }
+  info.lines = [...lines];
+
+  const addThreads = (key: string | undefined, count: number) => {
+    if (key && count > 0) info.threads[key] = (info.threads[key] ?? 0) + count;
+  };
+  const reactThreads = new Map<Element, Set<string>>();
+  for (const marker of scope.querySelectorAll(REACT_THREAD)) {
+    const cell = marker.closest('[data-line-anchor]');
+    if (!cell) continue;
+    const ids = reactThreads.get(cell) ?? new Set<string>();
+    ids.add(marker.getAttribute('data-marker-id')!);
+    reactThreads.set(cell, ids);
+  }
+  for (const [cell, ids] of reactThreads) addThreads(lineKey(cell, anchor), ids.size);
+  for (const row of scope.querySelectorAll(CLASSIC_THREAD_ROW)) {
+    const line = row.previousElementSibling;
+    if (line) addThreads(rowKey(line, anchor), Math.max(1, row.querySelectorAll(CLASSIC_THREAD).length));
+  }
+  return info;
+}
+
+function waitFor<T>(find: () => T | null, timeoutMs: number): Promise<T | null> {
+  const deadline = Date.now() + timeoutMs;
+  return new Promise((resolve) => {
+    const poll = () => {
+      const found = find();
+      if (found || Date.now() >= deadline) resolve(found);
+      else setTimeout(poll, 50);
+    };
+    poll();
+  });
+}
+
+/**
+ * Scrolls a line into view and, when asked, opens GitHub's own comment box for it.
+ * React only renders the "Add comment" button for the focused or hovered line, so the line is focused first.
+ */
+export async function revealLine(
+  anchor: string,
+  key: string,
+  startComment: boolean,
+  doc: Document = document,
+): Promise<GoToLineResponse> {
+  if (!FILE_ANCHOR.test(anchor) || !LINE_KEY.test(key)) return { found: false, commentBoxOpened: false };
+  const id = anchor + key;
+  const cell = doc.querySelector<HTMLElement>(`[data-line-anchor="${id}"]`) ?? doc.getElementById(id);
+  const row = cell?.closest('tr');
+  if (!cell || !row) return { found: false, commentBoxOpened: false };
+
+  row.scrollIntoView({ block: 'center' });
+  if (!startComment) return { found: true, commentBoxOpened: false };
+  cell.focus({ preventScroll: true });
+  const button = await waitFor(() => row.querySelector<HTMLElement>(ADD_COMMENT_BUTTON), ADD_COMMENT_TIMEOUT_MS);
+  button?.click();
+  return { found: true, commentBoxOpened: !!button };
 }

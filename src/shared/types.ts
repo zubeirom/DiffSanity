@@ -3,6 +3,12 @@ export type FileStatus = 'added' | 'deleted' | 'renamed' | 'modified';
 
 export type Theme = 'light' | 'dark';
 
+export interface PullRequestRef {
+  owner: string;
+  repo: string;
+  pr: number;
+}
+
 /** Everything the review page needs to reconstruct the review of one file. */
 export interface ReviewRequest {
   /** Origin of the GitHub instance, e.g. `https://github.com`. Explicit so GitHub Enterprise can be added later. */
@@ -52,10 +58,32 @@ export interface FileDiff {
   approximate: boolean;
 }
 
+/**
+ * What the GitHub tab shows of one file. Lines are identified by GitHub's keys:
+ * `R12` is line 12 of the new file, `L7` is line 7 of the old file.
+ */
+export interface GitHubLineInfo {
+  /** True when the signed-in user can add review comments on the page. */
+  canComment: boolean;
+  /** Keys of the lines GitHub currently renders; only these can be commented on. */
+  lines: string[];
+  /** Number of review threads attached to each line key. */
+  threads: Record<string, number>;
+}
+
+export interface GoToLineResponse {
+  /** False when the line is not rendered on the GitHub tab. */
+  found: boolean;
+  /** True when GitHub's comment box was opened. */
+  commentBoxOpened: boolean;
+}
+
 /** Messages exchanged between the content script, background worker and review page. */
 export type Message =
   | { type: 'diffsanity:open'; request: ReviewRequest; background: boolean }
-  | { type: 'diffsanity:fetchText'; url: string };
+  | { type: 'diffsanity:fetchText'; url: string }
+  | { type: 'diffsanity:lineInfo'; pullRequest: PullRequestRef; anchor: string }
+  | { type: 'diffsanity:goToLine'; pullRequest: PullRequestRef; anchor: string; lineKey: string; startComment: boolean };
 
 export interface FetchTextResponse {
   ok: boolean;

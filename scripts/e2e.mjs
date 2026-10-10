@@ -10,6 +10,8 @@ const EXTENSION = path.resolve('dist');
 const SCREENSHOTS = path.resolve('docs', 'screenshots');
 const MANY_FILES_PR = 'https://github.com/microsoft/vscode/pull/340793';
 const RENAME_PR = 'https://github.com/microsoft/vscode/pull/248252';
+const COMMENTS_PR = 'https://github.com/vercel/next.js/pull/99968';
+const COMMENTS_FILE = 'turbopack-node/js/src/child_process/index.ts';
 
 const results = [];
 async function check(name, fn) {
@@ -171,6 +173,33 @@ try {
     assert((await renamed.locator('.ds-line:not(.ds-add)').count()) > 0, 'no unchanged lines: old path not loaded');
     await renamed.close();
   });
+
+  console.log('Review comments (signed out, classic view)');
+  await page.goto(`${COMMENTS_PR}/files`, { waitUntil: 'domcontentloaded' });
+  await page.locator(`.diffsanity-button[aria-label*="${COMMENTS_FILE}"]`).waitFor({ timeout: 60_000 });
+  const commented = await openReview(context, page, `.diffsanity-button[aria-label*="${COMMENTS_FILE}"]`);
+  await check("thread markers match GitHub's review threads", async () => {
+    await commented.locator('.ds-thread-marker').first().waitFor({ timeout: 10_000 });
+    const titles = await commented.locator('.ds-thread-marker').evaluateAll((markers) => markers.map((m) => m.title));
+    assert(
+      titles.some((title) => title.includes('line 71')) && titles.some((title) => title.includes('line 84')),
+      `markers: ${titles.join(' | ')}`,
+    );
+  });
+  await check('signed-out users get no comment button', async () => {
+    await commented.locator('.ds-add').first().hover();
+    assert((await commented.locator('.ds-comment-add').count()) === 0, '"+" shown while signed out');
+  });
+  await check('a thread marker scrolls GitHub to the conversation', async () => {
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await commented.locator('.ds-thread-marker').first().click();
+    await page.waitForFunction((file) => {
+      const anchor = document.querySelector(`.file-header[data-path$="${file}"]`)?.dataset.anchor;
+      const top = document.getElementById(`${anchor}R71`)?.getBoundingClientRect().top ?? -1;
+      return top > 0 && top < innerHeight;
+    }, COMMENTS_FILE, { timeout: 5000 });
+  });
+  await commented.close();
 
   console.log('GitHub dark mode');
   await check('button is readable in dark mode', async () => {

@@ -1,10 +1,4 @@
-import type { FileStatus, ReviewRequest, Revisions, Theme } from './types';
-
-export interface PullRequestRef {
-  owner: string;
-  repo: string;
-  pr: number;
-}
+import type { FileStatus, PullRequestRef, ReviewRequest, Revisions, Theme } from './types';
 
 const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/([^/]+))?/;
 const FILES_TABS = new Set(['files', 'changes']);

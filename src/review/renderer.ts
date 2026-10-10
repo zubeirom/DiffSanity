@@ -47,6 +47,10 @@ export function columnWidth(text: string): number {
 
 export interface RenderedDiff {
   scrollToLine(index: number, align?: 'start' | 'center'): void;
+  /** Row element of a diff line. */
+  row(index: number): HTMLElement | undefined;
+  /** Index of the diff line at a viewport Y coordinate, or -1 outside the diff. */
+  lineAt(clientY: number): number;
 }
 
 /**
@@ -83,6 +87,13 @@ export function renderDiff(scroller: HTMLElement, diff: FileDiff, sources: Highl
     scrollToLine(index, align = 'start') {
       const offset = align === 'center' ? (scroller.clientHeight - LINE_HEIGHT) / 2 : 0;
       scroller.scrollTop = Math.max(0, index * LINE_HEIGHT - offset);
+    },
+    row(index) {
+      return code.children[Math.floor(index / CHUNK_SIZE)]?.children[index % CHUNK_SIZE] as HTMLElement | undefined;
+    },
+    lineAt(clientY) {
+      const index = Math.floor((clientY - code.getBoundingClientRect().top) / LINE_HEIGHT);
+      return index >= 0 && index < diff.lines.length ? index : -1;
     },
   };
 }

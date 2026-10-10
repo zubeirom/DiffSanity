@@ -1,6 +1,6 @@
 import { isPullRequestFilesPage, parsePullRequestUrl } from '../shared/githubContext';
-import type { FetchTextResponse, Message, ReviewRequest } from '../shared/types';
-import { extractPageRevisions, resolveTheme, type FileHeader } from './github';
+import type { FetchTextResponse, GitHubLineInfo, GoToLineResponse, Message, PullRequestRef, ReviewRequest } from '../shared/types';
+import { extractPageRevisions, readLineInfo, resolveTheme, revealLine, type FileHeader } from './github';
 import { injectButtons } from './injectButton';
 
 const SCAN_DELAY_MS = 150;
@@ -51,10 +51,39 @@ async function fetchText(url: string): Promise<FetchTextResponse> {
   }
 }
 
+/** True when this tab still shows the pull request a review page asks about. */
+function showsPullRequest({ owner, repo, pr }: PullRequestRef): boolean {
+  const current = parsePullRequestUrl(location.href);
+  return (
+    isPullRequestFilesPage(location.href) &&
+    current?.owner.toLowerCase() === owner.toLowerCase() &&
+    current.repo.toLowerCase() === repo.toLowerCase() &&
+    current.pr === pr
+  );
+}
+
 chrome.runtime.onMessage.addListener((message: Message, _sender, sendResponse) => {
-  if (message.type !== 'diffsanity:fetchText') return false;
-  fetchText(message.url).then(sendResponse);
-  return true;
+  switch (message.type) {
+    case 'diffsanity:fetchText':
+      fetchText(message.url).then(sendResponse);
+      return true;
+    case 'diffsanity:lineInfo': {
+      const info: GitHubLineInfo = showsPullRequest(message.pullRequest)
+        ? readLineInfo(message.anchor)
+        : { canComment: false, lines: [], threads: {} };
+      sendResponse(info);
+      return false;
+    }
+    case 'diffsanity:goToLine':
+      if (!showsPullRequest(message.pullRequest)) {
+        sendResponse({ found: false, commentBoxOpened: false } satisfies GoToLineResponse);
+        return false;
+      }
+      revealLine(message.anchor, message.lineKey, message.startComment).then(sendResponse);
+      return true;
+    default:
+      return false;
+  }
 });
 
 // GitHub navigates client-side (Turbo / React router) and renders diffs progressively,

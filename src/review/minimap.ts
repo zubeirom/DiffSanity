@@ -6,6 +6,8 @@ const MIN_VIEWPORT_HEIGHT = 6;
 /** Width of the change ruler on the right edge, drawn with a minimum height so single-line changes stay visible. */
 const RULER_WIDTH = 4;
 const MIN_RULER_MARK = 2;
+/** Review threads are marked on the left edge. */
+const COMMENT_MARK_WIDTH = 3;
 
 /** Minimap pixels per file line: the whole file fits in the track, capped at `MAX_SCALE`. */
 export function minimapScale(lineCount: number, trackHeight: number): number {
@@ -38,6 +40,7 @@ interface Palette {
   deletion: string;
   additionBackground: string;
   deletionBackground: string;
+  comment: string;
 }
 
 function readPalette(element: HTMLElement): Palette {
@@ -49,6 +52,7 @@ function readPalette(element: HTMLElement): Palette {
     deletion: get('--ds-minimap-del'),
     additionBackground: get('--ds-minimap-add-bg'),
     deletionBackground: get('--ds-minimap-del-bg'),
+    comment: get('--ds-minimap-comment'),
   };
 }
 
@@ -63,6 +67,7 @@ export class Minimap {
   private scale = MAX_SCALE;
   private frame = 0;
   private dragOffset: number | null = null;
+  private threadLines: readonly number[] = [];
 
   constructor(
     private readonly host: HTMLElement,
@@ -130,6 +135,17 @@ export class Minimap {
       context.fillStyle = line.type === 'addition' ? palette.addition : palette.deletion;
       context.fillRect(width - RULER_WIDTH, index * scale, RULER_WIDTH, Math.max(scale, MIN_RULER_MARK));
     });
+
+    context.fillStyle = palette.comment;
+    for (const index of this.threadLines) {
+      context.fillRect(0, index * scale, COMMENT_MARK_WIDTH, Math.max(scale, COMMENT_MARK_WIDTH));
+    }
+  }
+
+  /** Marks the lines that have review threads on GitHub. */
+  setThreadLines(indices: readonly number[]): void {
+    this.threadLines = indices;
+    this.draw();
   }
 
   private readonly scheduleViewportUpdate = () => {

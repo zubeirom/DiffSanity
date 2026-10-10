@@ -25,6 +25,8 @@
   --ds-minimap-del-bg: rgba(207, 34, 46, 0.16);
   --ds-minimap-viewport: rgba(9, 105, 218, 0.12);
   --ds-minimap-viewport-border: rgba(9, 105, 218, 0.45);
+  --ds-comment: #8250df;
+  --ds-minimap-comment: #8250df;
 
   /* Syntax: GitHub light */
   --ds-syn-comment: #59636e;
@@ -61,6 +63,8 @@
   --ds-minimap-del-bg: rgba(248, 81, 73, 0.2);
   --ds-minimap-viewport: rgba(68, 147, 248, 0.14);
   --ds-minimap-viewport-border: rgba(68, 147, 248, 0.5);
+  --ds-comment: #8957e5;
+  --ds-minimap-comment: #a371f7;
 
   /* Syntax: GitHub dark */
   --ds-syn-comment: #9198a1;
@@ -298,6 +302,45 @@ a:hover {
 
 .ds-del .ds-sign {
   color: var(--ds-del-fg);
+}
+
+/* GitHub comments: both buttons cover the sign column of the gutter. */
+
+.ds-comment-add,
+.ds-thread-marker {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  color: #ffffff;
+  font: 600 11px/1 var(--ds-font-ui);
+  cursor: pointer;
+}
+
+.ds-comment-add {
+  background: var(--ds-accent);
+  font-size: 15px;
+}
+
+.ds-thread-marker {
+  background: var(--ds-comment);
+}
+
+.ds-comment-add:hover,
+.ds-thread-marker:hover {
+  filter: brightness(1.15);
+}
+
+.ds-comment-add:focus-visible,
+.ds-thread-marker:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: 1px;
 }
 
 /* Minimap */

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { extractPageRevisions, findFileHeaders, resolveTheme } from '../src/content/github';
+import { extractPageRevisions, findFileHeaders, readLineInfo, resolveTheme, revealLine } from '../src/content/github';
 import { injectButtons } from '../src/content/injectButton';
 
 const BASE = '8571e6fd2f04a40dc0341c05897b93ff132b06f8';
@@ -108,5 +108,107 @@ describe('resolveTheme', () => {
     document.documentElement.dataset.colorMode = 'auto';
     window.matchMedia = vi.fn().mockReturnValue({ matches: true }) as unknown as typeof window.matchMedia;
     expect(resolveTheme()).toBe('dark');
+  });
+});
+
+// React diff rows: keys on the code cell, threads rendered inside it.
+const REACT_LINES = `
+<meta name="user-login" content="octocat">
+<div id="diff-abc">
+  <table><tbody>
+    <tr class="diff-line-row"><td data-line-number="1"></td><td data-line-number="1"></td>
+      <td class="diff-text-cell" tabindex="-1" data-line-anchor="diff-abcR1">ctx</td></tr>
+    <tr class="diff-line-row"><td data-line-number="2"></td><td></td>
+      <td class="diff-text-cell" tabindex="-1" data-line-anchor="diff-abcL2">old</td></tr>
+    <tr class="diff-line-row"><td></td><td data-line-number="2"></td>
+      <td class="diff-text-cell" tabindex="-1" data-line-anchor="diff-abcR2">new
+        <div data-inline-markers><div data-marker-id="7" data-first-marker></div><div data-marker-id="8"></div></div></td></tr>
+  </tbody></table>
+</div>
+<div id="diff-abcd"><table><tbody><tr><td data-line-anchor="diff-abcdR9"></td></tr></tbody></table></div>`;
+
+// Classic diff rows: keys on the number cells, threads in the following row.
+const CLASSIC_LINES = `
+<div id="diff-abc">
+  <table><tbody>
+    <tr><td id="diff-abcL5" data-line-number="5"></td><td id="diff-abcR5" data-line-number="5"></td>
+      <td class="blob-code"><button class="js-add-line-comment">+</button>ctx</td></tr>
+    <tr class="inline-comments"><td><turbo-frame id="review-thread-or-comment-id-1"></turbo-frame>
+      <turbo-frame id="review-thread-or-comment-id-2"></turbo-frame></td></tr>
+    <tr><td id="diff-abcL6" data-line-number="6"></td><td></td><td class="blob-code">old</td></tr>
+  </tbody></table>
+</div>`;
+
+describe('readLineInfo', () => {
+  it('reads React lines and threads of one file', () => {
+    document.body.innerHTML = REACT_LINES;
+    expect(readLineInfo('diff-abc')).toEqual({ canComment: true, lines: ['R1', 'L2', 'R2'], threads: { R2: 2 } });
+  });
+
+  it('reads classic lines and threads', () => {
+    document.body.innerHTML = CLASSIC_LINES;
+    expect(readLineInfo('diff-abc')).toEqual({ canComment: false, lines: ['L5', 'R5', 'L6'], threads: { R5: 2 } });
+  });
+
+  it('returns nothing for files that are not rendered or invalid anchors', () => {
+    document.body.innerHTML = REACT_LINES;
+    expect(readLineInfo('diff-zzz').lines).toEqual([]);
+    expect(readLineInfo('diff-abc"]').lines).toEqual([]);
+  });
+});
+
+describe('revealLine', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('opens the React comment box, which only appears once the line is focused', async () => {
+    document.body.innerHTML = REACT_LINES;
+    const cell = document.querySelector<HTMLElement>('[data-line-anchor="diff-abcL2"]')!;
+    const onComment = vi.fn();
+    cell.addEventListener('focus', () => {
+      const button = document.createElement('button');
+      button.dataset.addCommentButton = 'true';
+      button.addEventListener('click', onComment);
+      cell.append(button);
+    });
+
+    await expect(revealLine('diff-abc', 'L2', true)).resolves.toEqual({ found: true, commentBoxOpened: true });
+    expect(cell.closest('tr')!.scrollIntoView).toHaveBeenCalled();
+    expect(onComment).toHaveBeenCalledOnce();
+  });
+
+  it('opens the classic comment box from a line-number cell', async () => {
+    document.body.innerHTML = CLASSIC_LINES;
+    const onComment = vi.fn();
+    document.querySelector('.js-add-line-comment')!.addEventListener('click', onComment);
+    await expect(revealLine('diff-abc', 'R5', true)).resolves.toEqual({ found: true, commentBoxOpened: true });
+    expect(onComment).toHaveBeenCalledOnce();
+  });
+
+  it('only scrolls when no comment is wanted', async () => {
+    document.body.innerHTML = CLASSIC_LINES;
+    const onComment = vi.fn();
+    document.querySelector('.js-add-line-comment')!.addEventListener('click', onComment);
+    await expect(revealLine('diff-abc', 'R5', false)).resolves.toEqual({ found: true, commentBoxOpened: false });
+    expect(onComment).not.toHaveBeenCalled();
+  });
+
+  it('gives up when GitHub offers no comment button', async () => {
+    vi.useFakeTimers();
+    try {
+      document.body.innerHTML = REACT_LINES;
+      const result = revealLine('diff-abc', 'R1', true);
+      await vi.advanceTimersByTimeAsync(1100);
+      await expect(result).resolves.toEqual({ found: true, commentBoxOpened: false });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports lines that are not rendered', async () => {
+    document.body.innerHTML = REACT_LINES;
+    await expect(revealLine('diff-abc', 'R40', true)).resolves.toEqual({ found: false, commentBoxOpened: false });
+    await expect(revealLine('diff-abc', 'X1', true)).resolves.toEqual({ found: false, commentBoxOpened: false });
   });
 });

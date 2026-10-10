@@ -1,5 +1,6 @@
 import { fromReviewSearch, pullRequestFilesUrl } from '../shared/githubContext';
 import type { FileStatus, ReviewRequest } from '../shared/types';
+import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { loadFileContents, LoadError } from './fileSource';
 import { Minimap } from './minimap';
@@ -122,6 +123,12 @@ async function main(): Promise<void> {
     if (!diff.lines.length) showMessage('This file is empty.', 'info');
 
     minimap = new Minimap(element('#ds-minimap'), scroller, diff.lines, LINE_HEIGHT);
+    const { sourceTabId, anchor } = request;
+    if (sourceTabId !== undefined && anchor) {
+      new GitHubComments({ ...request, sourceTabId, anchor }, diff.lines, scroller, rendered, minimap, (text) =>
+        showMessage(text, 'info'),
+      );
+    }
     const firstChange = findChangeBlocks(diff.lines)[0];
     if (firstChange) rendered.scrollToLine(Math.max(0, firstChange.start - CONTEXT_ABOVE_FIRST_CHANGE));
     scroller.focus({ preventScroll: true });
