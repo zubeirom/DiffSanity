@@ -66,7 +66,7 @@ All requests go only to GitHub, from the user's browser, using their existing Gi
 
 | File | Use |
 | --- | --- |
-| `screenshot-1-github.png` … `screenshot-4-*.png` (1280×800) | Screenshots, both stores |
-| `promo-small-440x280.png` | Chrome small promo tile; Edge small promotional tile |
+| `screenshot-1-github.png` … `screenshot-5-comments.png` (1280×800, full bleed) | Screenshots, both stores, in this order |
+| `promo-small-440x280.png` | Chrome small promo tile (required); Edge small promotional tile |
 | `promo-marquee-1400x560.png` | Chrome marquee; Edge large promotional tile (optional) |
 | `logo-300.png` | Edge extension logo (Chrome uses `icons/icon-128.png` from the zip) |
