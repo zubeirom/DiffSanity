@@ -137,3 +137,11 @@ Verified by hand while signed in (React view): **+** opens GitHub's "Add a comme
 - Very long lines are measured in `ch` units, so wide (CJK) characters can make the horizontal scroll width slightly short.
 - github.com only. GitHub Enterprise needs an origin added in `isAllowedOrigin` and in the manifest's `matches`/`host_permissions`.
 - Not implemented yet: writing comments inside the review page, a side-by-side view, j/k change navigation, a file tree, word-level highlighting and a native file viewer for images. The normalised `FileDiff` model and the separate renderer and minimap are meant to make these additive.
+
+## Publishing
+
+`npm run package` builds the store zip. Listing text, privacy answers and store images for the Chrome Web Store and Edge Add-ons are in [`docs/store/`](docs/store/README.md). Store images were made once from the E2E screenshots and are committed as-is.
+
+## Privacy and license
+
+DiffSanity collects no data; see [PRIVACY.md](PRIVACY.md). Released under the [MIT License](LICENSE).

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Bring sanity back to GitHub diffs.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
