@@ -1,0 +1,15 @@
+# GitHub Pages: serves README.md as the home page and PRIVACY.md at /PRIVACY.html.
+title: DiffSanity
+description: Bring sanity back to GitHub diffs.
+theme: jekyll-theme-primer
+exclude:
+  - src
+  - test
+  - scripts
+  - release
+  - dist
+  - node_modules
+  - package.json
+  - package-lock.json
+  - tsconfig.json
+  - manifest.json

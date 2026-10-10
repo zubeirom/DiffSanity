@@ -11,7 +11,7 @@ Copy-paste text and assets for the [Chrome Web Store](https://chrome.google.com/
 | Category | Developer Tools |
 | Language | English |
 | Homepage / support URL | https://github.com/zubeirom/DiffSanity |
-| Privacy policy URL | https://github.com/zubeirom/DiffSanity/blob/master/PRIVACY.md |
+| Privacy policy URL | https://zubeirom.github.io/DiffSanity/PRIVACY.html |
 
 ## Description
 
