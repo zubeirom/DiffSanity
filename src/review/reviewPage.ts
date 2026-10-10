@@ -56,6 +56,11 @@ function setUpModalActions(request: ReviewRequest): void {
   const post = (message: FrameMessage) => window.parent.postMessage(message, request.origin);
   const close = () => post({ type: 'diffsanity:frame', action: 'close' });
 
+  // GitHub refuses to be framed, so links must navigate the GitHub tab rather than this frame.
+  const base = document.createElement('base');
+  base.target = '_top';
+  document.head.append(base);
+
   element('#ds-back').hidden = true;
   element('#ds-window-actions').hidden = false;
 

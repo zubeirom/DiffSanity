@@ -135,6 +135,14 @@ try {
     await page.waitForFunction(() => !document.querySelector('dialog.diffsanity-modal'));
   });
 
+  await check('PR link in the modal navigates the GitHub tab, not the frame', async () => {
+    const frame = await openModal(page);
+    await Promise.all([page.waitForNavigation(), frame.locator('#ds-pr').click()]);
+    await page.waitForSelector('.diffsanity-button', { timeout: 30_000 });
+    assert(page.url().endsWith('/pull/340793/files'), `url ${page.url()}`);
+    assert((await modalCount(page)) === 0, 'modal still open');
+  });
+
   await check('"Open in new tab" moves the review to a tab', async () => {
     const frame = await openModal(page);
     const [tab] = await Promise.all([context.waitForEvent('page'), frame.locator('#ds-new-tab').click()]);
