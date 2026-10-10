@@ -24,7 +24,7 @@ Everything runs in your browser. There is no backend, no OAuth and no tokens.
 
 ## Install (unpacked)
 
-Requires Node.js 20+.
+Requires Node.js 24 LTS (or 22.22.2+). Building alone works on Node 20, but the tests need the newer versions.
 
 ```sh
 npm install
