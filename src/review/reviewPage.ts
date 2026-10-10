@@ -1,11 +1,12 @@
 import { fromReviewSearch, pullRequestFilesUrl } from '../shared/githubContext';
-import type { FileStatus, ReviewRequest } from '../shared/types';
+import type { FileStatus, ReviewRequest, Theme } from '../shared/types';
 import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { loadFileContents, LoadError } from './fileSource';
 import { Minimap } from './minimap';
 import { LINE_HEIGHT, renderDiff } from './renderer';
 import { highlightLines } from './syntax';
+import { loadThemeChoice, parseThemeChoice, resolveThemeId, saveThemeChoice, THEME_STORAGE_KEY, THEMES } from './themes';
 
 /** Lines of context kept above the first change when the file opens. */
 const CONTEXT_ABOVE_FIRST_CHANGE = 4;
@@ -16,19 +17,36 @@ function element<T extends HTMLElement>(selector: string): T {
   return found;
 }
 
-function applyTheme(request: ReviewRequest | null, onChange: () => void): void {
+/** Applies the saved colour theme, offers the picker, and keeps every open review tab in sync. */
+function setupTheme(request: ReviewRequest | null, onChange: () => void): void {
   const root = document.documentElement;
-  if (request?.theme) {
-    root.dataset.theme = request.theme;
-    return;
-  }
+  const picker = element<HTMLSelectElement>('#ds-theme');
   const query = matchMedia('(prefers-color-scheme: dark)');
-  const update = () => {
-    root.dataset.theme = query.matches ? 'dark' : 'light';
+  const githubTheme = (): Theme => request?.theme ?? (query.matches ? 'dark' : 'light');
+  let choice = loadThemeChoice();
+
+  const apply = () => {
+    root.dataset.theme = resolveThemeId(choice, githubTheme());
+    picker.value = choice;
     onChange();
   };
-  query.addEventListener('change', update);
-  root.dataset.theme = query.matches ? 'dark' : 'light';
+  picker.replaceChildren(
+    new Option('Match GitHub', 'auto'),
+    ...THEMES.map((theme) => new Option(theme.label, theme.id)),
+  );
+  picker.addEventListener('change', () => {
+    choice = parseThemeChoice(picker.value);
+    saveThemeChoice(choice);
+    apply();
+  });
+  // Fired in other review tabs when the choice changes in one of them.
+  window.addEventListener('storage', (event) => {
+    if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
+    choice = loadThemeChoice();
+    apply();
+  });
+  query.addEventListener('change', apply);
+  apply();
 }
 
 /** Returns to the GitHub tab DiffSanity was opened from, falling back to navigating this tab. */
@@ -95,7 +113,7 @@ function showMessage(text: string, kind: 'loading' | 'error' | 'info'): void {
 async function main(): Promise<void> {
   const request = fromReviewSearch(location.search);
   let minimap: Minimap | undefined;
-  applyTheme(request, () => minimap?.draw());
+  setupTheme(request, () => minimap?.draw());
   if (!request) {
     showMessage('This DiffSanity link is incomplete. Open a file from a pull request\'s "Files changed" tab.', 'error');
     return;

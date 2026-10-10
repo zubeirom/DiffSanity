@@ -39,7 +39,7 @@
   --ds-syn-regex: #116329;
 }
 
-:root[data-theme="dark"] {
+:root[data-theme="github-dark"] {
   color-scheme: dark;
   --ds-bg: #0d1117;
   --ds-bg-subtle: #151b23;
@@ -75,6 +75,92 @@
   --ds-syn-type: #ffa657;
   --ds-syn-tag: #7ee787;
   --ds-syn-regex: #7ee787;
+}
+
+/*
+ * Azure DevOps themes. ADO shows files in the Monaco editor, so these use VS Code's Dark+ / Light+ colours.
+ * Optional slots (--ds-line-number, --ds-syn-number/property/variable) fall back to the closest base colour.
+ */
+:root[data-theme="ado-dark"] {
+  color-scheme: dark;
+  --ds-bg: #1e1e1e;
+  --ds-bg-subtle: #252526;
+  --ds-fg: #d4d4d4;
+  --ds-fg-muted: #9d9d9d;
+  --ds-border: #3c3c3c;
+  --ds-accent: #3794ff;
+  --ds-line-number: #858585;
+
+  --ds-add-bg: rgba(155, 185, 85, 0.2);
+  --ds-add-gutter: rgba(155, 185, 85, 0.35);
+  --ds-add-fg: #81b88b;
+  --ds-del-bg: rgba(255, 0, 0, 0.2);
+  --ds-del-gutter: rgba(255, 0, 0, 0.3);
+  --ds-del-fg: #f14c4c;
+
+  --ds-minimap-bg: #1e1e1e;
+  --ds-minimap-text: rgba(212, 212, 212, 0.22);
+  --ds-minimap-add: #81b88b;
+  --ds-minimap-del: #f14c4c;
+  --ds-minimap-add-bg: rgba(155, 185, 85, 0.25);
+  --ds-minimap-del-bg: rgba(255, 0, 0, 0.25);
+  --ds-minimap-viewport: rgba(121, 121, 121, 0.2);
+  --ds-minimap-viewport-border: rgba(121, 121, 121, 0.5);
+  --ds-comment: #8957e5;
+  --ds-minimap-comment: #c586c0;
+
+  --ds-syn-comment: #6a9955;
+  --ds-syn-keyword: #569cd6;
+  --ds-syn-string: #ce9178;
+  --ds-syn-constant: #569cd6;
+  --ds-syn-number: #b5cea8;
+  --ds-syn-property: #9cdcfe;
+  --ds-syn-variable: #9cdcfe;
+  --ds-syn-function: #dcdcaa;
+  --ds-syn-type: #4ec9b0;
+  --ds-syn-tag: #569cd6;
+  --ds-syn-regex: #d16969;
+}
+
+:root[data-theme="ado-light"] {
+  color-scheme: light;
+  --ds-bg: #ffffff;
+  --ds-bg-subtle: #f3f3f3;
+  --ds-fg: #1f1f1f;
+  --ds-fg-muted: #616161;
+  --ds-border: #e5e5e5;
+  --ds-accent: #0078d4;
+  --ds-line-number: #237893;
+
+  --ds-add-bg: rgba(155, 185, 85, 0.2);
+  --ds-add-gutter: rgba(155, 185, 85, 0.4);
+  --ds-add-fg: #587c0c;
+  --ds-del-bg: rgba(255, 0, 0, 0.12);
+  --ds-del-gutter: rgba(255, 0, 0, 0.25);
+  --ds-del-fg: #ad0707;
+
+  --ds-minimap-bg: #f8f8f8;
+  --ds-minimap-text: rgba(0, 0, 0, 0.2);
+  --ds-minimap-add: #587c0c;
+  --ds-minimap-del: #ad0707;
+  --ds-minimap-add-bg: rgba(155, 185, 85, 0.3);
+  --ds-minimap-del-bg: rgba(255, 0, 0, 0.18);
+  --ds-minimap-viewport: rgba(100, 100, 100, 0.15);
+  --ds-minimap-viewport-border: rgba(100, 100, 100, 0.4);
+  --ds-comment: #8250df;
+  --ds-minimap-comment: #af00db;
+
+  --ds-syn-comment: #008000;
+  --ds-syn-keyword: #0000ff;
+  --ds-syn-string: #a31515;
+  --ds-syn-constant: #0000ff;
+  --ds-syn-number: #098658;
+  --ds-syn-property: #001080;
+  --ds-syn-variable: #001080;
+  --ds-syn-function: #795e26;
+  --ds-syn-type: #267f99;
+  --ds-syn-tag: #800000;
+  --ds-syn-regex: #811f3f;
 }
 
 * {
@@ -204,6 +290,25 @@ a:hover {
   letter-spacing: 0.01em;
 }
 
+.ds-theme {
+  padding: 2px 4px;
+  border: 1px solid var(--ds-border);
+  border-radius: 6px;
+  background: var(--ds-bg);
+  color: var(--ds-fg);
+  font: 12px var(--ds-font-ui);
+  cursor: pointer;
+}
+
+.ds-theme:hover {
+  border-color: var(--ds-fg-muted);
+}
+
+.ds-theme:focus-visible {
+  outline: 2px solid var(--ds-accent);
+  outline-offset: 1px;
+}
+
 .ds-message {
   flex: none;
   padding: 8px 12px;
@@ -257,7 +362,7 @@ a:hover {
   flex: none;
   width: var(--ds-gutter-width);
   background: var(--ds-bg);
-  color: var(--ds-fg-muted);
+  color: var(--ds-line-number, var(--ds-fg-muted));
   user-select: none;
 }
 
@@ -402,16 +507,22 @@ a:hover {
   color: var(--ds-syn-string);
 }
 
-.token.number,
 .token.boolean,
 .token.constant,
-.token.property,
-.token.attr-name,
 .token.symbol,
 .token.builtin,
-.token.operator.arrow,
-.token.key {
+.token.operator.arrow {
   color: var(--ds-syn-constant);
+}
+
+.token.number {
+  color: var(--ds-syn-number, var(--ds-syn-constant));
+}
+
+.token.property,
+.token.attr-name,
+.token.key {
+  color: var(--ds-syn-property, var(--ds-syn-constant));
 }
 
 .token.function,
@@ -422,10 +533,13 @@ a:hover {
 }
 
 .token.class-name,
-.token.namespace,
+.token.namespace {
+  color: var(--ds-syn-type);
+}
+
 .token.variable,
 .token.parameter {
-  color: var(--ds-syn-type);
+  color: var(--ds-syn-variable, var(--ds-syn-type));
 }
 
 .token.tag,

@@ -10,13 +10,13 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
-- **Dark and light mode** follow your GitHub theme.
+- **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* (VS Code Dark+ colours) or *Azure DevOps Light* (VS Code Light+). Your choice is saved in the extension's local storage and applies to all review tabs.
 
 Everything runs in your browser. There is no backend, no OAuth and no tokens.
 
-| GitHub file header | Review page (light) | Review page (dark) |
-| --- | --- | --- |
-| ![Button](docs/screenshots/github-button.png) | ![Light](docs/screenshots/review-light.png) | ![Dark](docs/screenshots/review-dark.png) |
+| GitHub file header | Review page (light) | Review page (dark) | Azure DevOps Dark |
+| --- | --- | --- | --- |
+| ![Button](docs/screenshots/github-button.png) | ![Light](docs/screenshots/review-light.png) | ![Dark](docs/screenshots/review-dark.png) | ![Azure DevOps Dark](docs/screenshots/review-ado-dark.png) |
 
 ## Install (unpacked)
 
@@ -78,6 +78,7 @@ flowchart LR
 | `src/review/syntax.ts` | Highlights whole files with Prism, so multi-line comments and strings are correct, then splits the output into per-line HTML. |
 | `src/review/renderer.ts` | Renders rows at a fixed 20 px height in 200-line `content-visibility: auto` chunks. This keeps large files fast while Ctrl+F still finds everything. |
 | `src/review/minimap.ts` | Canvas minimap with change bands, a code-shape outline, a change ruler and review-thread marks. The canvas is only redrawn on resize, theme or thread changes; scrolling just moves the viewport element. |
+| `src/review/themes.ts` | The theme list, and how the saved choice resolves to a theme (`auto` follows GitHub's mode). Choices are stored in `localStorage` (`diffsanity.theme`), so they apply before first paint and sync to open tabs. The colours themselves are `:root[data-theme="…"]` CSS variables in `styles/review.css`. |
 | `src/review/comments.ts` | Maps GitHub's line keys (`R12` = new line 12, `L7` = old line 7) onto the full-file diff. Shows **+** on lines GitHub lets you comment on, and markers for existing threads. Clicking either switches to the PR tab and asks the content script to scroll there and open the comment box. It re-reads the PR tab whenever the review tab becomes visible again. DiffSanity never posts anything itself. |
 
 ### How the file is retrieved
@@ -116,6 +117,7 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 - A renamed file loads the old path and shows "renamed from".
 - Navigating Conversation → Files changed works. A `pushState` URL change plus a newly rendered file header gets a button only on the Files tab.
 - Light and dark mode on both GitHub and the review page.
+- The theme picker applies Azure DevOps Dark, and the choice survives a reload.
 - **Back to GitHub** focuses the source tab and closes the review.
 - Review comments, signed out: thread markers match GitHub's threads, there is no **+**, and a marker scrolls the PR tab to the line.
 

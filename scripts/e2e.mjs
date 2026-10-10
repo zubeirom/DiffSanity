@@ -95,6 +95,22 @@ try {
     await dark.close();
   });
 
+  await check('theme picker: Azure DevOps Dark applies and is remembered', async () => {
+    const themed = await context.newPage();
+    await themed.goto(review.url());
+    await themed.waitForSelector('.ds-line');
+    await themed.selectOption('#ds-theme', 'ado-dark');
+    const background = await themed.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    assert(background === 'rgb(30, 30, 30)', `background ${background}`);
+    await themed.screenshot({ path: path.join(SCREENSHOTS, 'review-ado-dark.png') });
+    await themed.reload();
+    await themed.waitForSelector('.ds-line');
+    const kept = await themed.evaluate(() => [document.documentElement.dataset.theme, document.querySelector('#ds-theme').value]);
+    assert(kept[0] === 'ado-dark' && kept[1] === 'ado-dark', `after reload: ${kept}`);
+    await themed.selectOption('#ds-theme', 'auto');
+    await themed.close();
+  });
+
   await check('"Back to GitHub" returns to the PR tab and closes the review', async () => {
     await Promise.all([review.waitForEvent('close'), review.locator('#ds-back').click()]);
   });
