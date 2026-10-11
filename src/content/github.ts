@@ -6,8 +6,8 @@
  * - classic (server-rendered): `.file-header[data-path][data-anchor]`
  * - React ("new files changed experience"): `h3 > a[href^="#diff-"]` inside `DiffFileHeader-module__*`
  */
-import { extractRevisionsFromText, parseRenamedPath } from '../shared/githubContext';
-import type { FileStatus, GitHubLineInfo, GoToLineResponse, Revisions, Theme } from '../shared/types';
+import { extractRevisionsFromText, parseRenamedPath, toPullRequestFiles } from '../shared/githubContext';
+import type { FileStatus, GitHubLineInfo, GoToLineResponse, PullRequestFile, Revisions, Theme } from '../shared/types';
 
 export interface FileHeader {
   /** Root of the file header; used for idempotency checks. */
@@ -24,6 +24,7 @@ export interface FileHeader {
 const CLASSIC_HEADER = '.file-header[data-path]';
 const REACT_FILE_LINK = 'h3 a[href^="#diff-"]';
 const REACT_HEADER = '[class*="DiffFileHeader-module__diff-file-header"]';
+const SCREEN_READER_TEXT = '.sr-only';
 /** Invisible direction marks (e.g. U+200E) GitHub wraps around file names so they read left to right. */
 const BIDI_MARKS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
 
@@ -63,7 +64,8 @@ function reactHeader(link: HTMLAnchorElement): FileHeader | null {
   if (!header) return null;
 
   // Only some headers have a `[data-file-path]` button (e.g. added files have none), so the link text is the fallback.
-  const text = visibleText(link.textContent);
+  // Renamed files show shortened names to sighted users and the full `old renamed to new` text to screen readers.
+  const text = visibleText((link.querySelector(SCREEN_READER_TEXT) ?? link).textContent);
   const renamed = parseRenamedPath(text);
   const path = header.querySelector<HTMLElement>('[data-file-path]')?.dataset.filePath ?? renamed?.path ?? text;
   if (!path) return null;
@@ -92,6 +94,126 @@ export function findFileHeaders(root: ParentNode = document): FileHeader[] {
     if (header) headers.push(header);
   }
   return headers;
+}
+
+/*
+ * The full file list. File headers alone are not enough: GitHub only renders some of them on large pull requests.
+ * - React: the page's embedded JSON (`react-app.embeddedData`) lists every file under `diffSummaries`;
+ *   the anchor is `diff-<pathDigest>`. Old paths of renames are only in the (partial) `diffContents`.
+ * - classic: the `<file-tree>` sidebar lists every file, with a status octicon.
+ * Old paths of renamed files come from the rendered headers when the list does not have them.
+ */
+const REACT_EMBEDDED_DATA = 'script[type="application/json"][data-target="react-app.embeddedData"]';
+const CLASSIC_TREE_FILE = 'file-tree [data-tree-entry-type="file"]';
+const CLASSIC_TREE_PATH = '[data-filterable-item-text]';
+const REACT_CHANGE_TYPES: Record<string, FileStatus> = {
+  ADDED: 'added',
+  COPIED: 'added',
+  REMOVED: 'deleted',
+  DELETED: 'deleted',
+  RENAMED: 'renamed',
+  MODIFIED: 'modified',
+  CHANGED: 'modified',
+};
+const CLASSIC_STATUS_ICONS: [string, FileStatus][] = [
+  ['.octicon-diff-added', 'added'],
+  ['.octicon-diff-removed', 'deleted'],
+  ['.octicon-diff-renamed', 'renamed'],
+  ['.octicon-diff-modified', 'modified'],
+];
+
+type JsonObject = Record<string, unknown>;
+
+function asObject(value: unknown): JsonObject | undefined {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as JsonObject) : undefined;
+}
+
+function asObjects(value: unknown): JsonObject[] {
+  return Array.isArray(value) ? value.map(asObject).filter((item): item is JsonObject => !!item) : [];
+}
+
+function reactFileList(doc: Document, pr: number): PullRequestFile[] | null {
+  for (const script of doc.querySelectorAll(REACT_EMBEDDED_DATA)) {
+    let data: unknown;
+    try {
+      data = JSON.parse(script.textContent ?? '');
+    } catch {
+      continue;
+    }
+    const route = asObject(asObject(asObject(data)?.payload)?.pullRequestsChangesRoute);
+    const summaries = asObjects(route?.diffSummaries);
+    // After client-side navigation the embedded data can belong to another pull request.
+    if (!route || !summaries.length || asObject(route.pullRequest)?.number !== pr) continue;
+
+    const oldPaths = new Map<unknown, unknown>();
+    for (const content of asObjects(route.diffContents)) oldPaths.set(content.path, asObject(content.oldTreeEntry)?.path);
+    return toPullRequestFiles(
+      summaries.map((summary) => {
+        const oldPath = oldPaths.get(summary.path);
+        return {
+          path: summary.path,
+          oldPath: oldPath !== summary.path ? oldPath : undefined,
+          status: REACT_CHANGE_TYPES[String(summary.changeType)],
+          anchor: typeof summary.pathDigest === 'string' ? `diff-${summary.pathDigest}` : undefined,
+          additions: summary.linesAdded,
+          deletions: summary.linesDeleted,
+        };
+      }),
+    );
+  }
+  return null;
+}
+
+function classicFileList(doc: Document): PullRequestFile[] | null {
+  const entries = [...doc.querySelectorAll<HTMLElement>(CLASSIC_TREE_FILE)];
+  if (!entries.length) return null;
+  return entries.flatMap((entry): PullRequestFile[] => {
+    const path = visibleText(entry.querySelector(CLASSIC_TREE_PATH)?.textContent);
+    if (!path) return [];
+    const icon = CLASSIC_STATUS_ICONS.find(([selector]) => entry.querySelector(selector));
+    const status = entry.dataset.fileDeleted === 'true' ? 'deleted' : icon?.[1];
+    return [{ path, status, anchor: anchorFromHref(entry.querySelector<HTMLAnchorElement>('a[href^="#diff-"]')) }];
+  });
+}
+
+/**
+ * Lists every changed file of pull request `pr`, in GitHub's order. Works on the live page and on
+ * a fetched copy of it. Returns an empty list when the page does not show that pull request's files.
+ */
+export function extractPullRequestFiles(doc: Document, pr: number): PullRequestFile[] {
+  const headers = findFileHeaders(doc);
+  const list = reactFileList(doc, pr) ?? classicFileList(doc);
+  if (!list) {
+    return headers.map(({ path, oldPath, status, anchor }) => ({ path, oldPath, status, anchor }));
+  }
+  const byAnchor = new Map(headers.filter((header) => header.anchor).map((header) => [header.anchor, header]));
+  const byPath = new Map(headers.map((header) => [header.path, header]));
+  return list.map((file) => {
+    const header = (file.anchor && byAnchor.get(file.anchor)) || byPath.get(file.path);
+    if (!header) return file;
+    return {
+      ...file,
+      oldPath: file.oldPath ?? header.oldPath,
+      status: file.status ?? header.status,
+      anchor: file.anchor ?? header.anchor,
+    };
+  });
+}
+
+/**
+ * Scrolls the page to a file's diff. When GitHub has not rendered that file yet (long, virtualised lists), its own
+ * file-tree link is followed instead, so GitHub loads it. Returns false when the file is not on the page.
+ */
+export function revealFile(anchor: string, doc: Document = document): boolean {
+  if (!FILE_ANCHOR.test(anchor)) return false;
+  const file = doc.getElementById(anchor);
+  if (file) {
+    file.scrollIntoView({ block: 'start' });
+    return true;
+  }
+  const link = doc.querySelector<HTMLElement>(`a[href="#${anchor}"]`);
+  link?.click();
+  return !!link;
 }
 
 function merge(into: Revisions, from: Revisions): Revisions {

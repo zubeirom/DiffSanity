@@ -8,6 +8,7 @@ import {
   parseRenamedPath,
   pullRequestFilesUrl,
   rawFileUrl,
+  toPullRequestFiles,
   toReviewSearch,
 } from '../src/shared/githubContext';
 import type { ReviewRequest } from '../src/shared/types';
@@ -77,9 +78,38 @@ describe('parseRenamedPath', () => {
     });
   });
 
+  it('splits the screen-reader wording of the React view', () => {
+    expect(parseRenamedPath('src/dnd.ts renamed to src/dataTransfer.ts')).toEqual({
+      oldPath: 'src/dnd.ts',
+      path: 'src/dataTransfer.ts',
+    });
+  });
+
   it('ignores plain paths', () => {
     expect(parseRenamedPath('src/a.ts')).toBeNull();
     expect(parseRenamedPath('→ b')).toBeNull();
+  });
+});
+
+describe('toPullRequestFiles', () => {
+  it('keeps valid fields and drops malformed entries', () => {
+    expect(
+      toPullRequestFiles([
+        { path: 'a.ts', oldPath: 'b.ts', status: 'renamed', anchor: 'diff-1', additions: 2, deletions: 0 },
+        { path: 'c.ts', status: 'unknown', additions: -1, deletions: 1.5, anchor: '' },
+        { path: '' },
+        null,
+        'd.ts',
+      ]),
+    ).toEqual([
+      { path: 'a.ts', oldPath: 'b.ts', status: 'renamed', anchor: 'diff-1', additions: 2, deletions: 0 },
+      { path: 'c.ts' },
+    ]);
+  });
+
+  it('returns nothing for values that are not lists', () => {
+    expect(toPullRequestFiles(undefined)).toEqual([]);
+    expect(toPullRequestFiles({ path: 'a.ts' })).toEqual([]);
   });
 });
 

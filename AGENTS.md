@@ -78,4 +78,4 @@ For README, store text, release notes, UI strings and messages to the owner: pla
 
 ## Roadmap
 
-Next up: a **full pull request review page**, showing every file in one page with the same whole-file diff, minimap and comment hand-off. Build it on the existing `FileDiff` model, renderer and minimap rather than a parallel implementation. Other ideas are listed under *Known limitations* in the README.
+The review tab now covers the whole pull request: a GitHub-style file list on the left switches files in place, using the existing `FileDiff` model, renderer and minimap. Build new review features on those modules rather than a parallel implementation. Next ideas (syncing GitHub's "Viewed" state, j/k change navigation, side-by-side view) are listed under *Known limitations* in the README.

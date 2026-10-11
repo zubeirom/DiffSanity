@@ -81,7 +81,41 @@ try {
     assert(max === 0 || after !== before, `scrollTop ${before} → ${after}`);
     await scroller.evaluate((el) => (el.scrollTop = 0));
   });
+  await check('sidebar lists every changed file and marks the open one', async () => {
+    await review.locator('.ds-tree-file').first().waitFor({ timeout: 30_000 });
+    const listed = await review.locator('.ds-tree-file').count();
+    const onGitHub = await page.locator('file-tree [data-tree-entry-type="file"]').count();
+    assert(listed > 1 && (onGitHub === 0 || listed === onGitHub), `${listed} listed, ${onGitHub} in GitHub's file tree`);
+    assert((await review.locator('.ds-tree-file[aria-selected="true"]').count()) === 1, 'open file not marked');
+  });
   await review.screenshot({ path: path.join(SCREENSHOTS, 'review-light.png') });
+  const firstTitle = await review.title();
+  await check('picking a file in the sidebar shows it in the same tab', async () => {
+    const other = review.locator('.ds-tree-file[aria-selected="false"]').last();
+    const otherPath = await other.getAttribute('data-path');
+    await other.click();
+    await review.waitForFunction(
+      (expected) => new URLSearchParams(location.search).get('path') === expected && document.querySelector('.ds-line, .ds-message[data-kind="error"]'),
+      otherPath,
+      { timeout: 30_000 },
+    );
+    assert((await review.title()) !== firstTitle, 'title did not change');
+    assert((await review.locator('.ds-tree-file[aria-selected="true"]').getAttribute('data-path')) === otherPath, 'wrong file marked');
+  });
+  await check('Alt+↑ / Alt+↓ open the previous / next file', async () => {
+    const current = await review.locator('.ds-tree-file[aria-selected="true"]').getAttribute('data-path');
+    await review.locator('#ds-scroller').focus();
+    await review.keyboard.press('Alt+ArrowUp');
+    await review.waitForFunction((was) => new URLSearchParams(location.search).get('path') !== was, current, { timeout: 5000 });
+    await review.keyboard.press('Alt+ArrowDown');
+    await review.waitForFunction((was) => new URLSearchParams(location.search).get('path') === was, current, { timeout: 5000 });
+  });
+  await check('sidebar can be hidden and shown again', async () => {
+    await review.locator('#ds-sidebar-toggle').click();
+    assert(await review.locator('#ds-sidebar').isHidden(), 'sidebar still visible');
+    await review.locator('#ds-sidebar-toggle').click();
+    assert(await review.locator('#ds-sidebar').isVisible(), 'sidebar not shown again');
+  });
 
   await check('dark theme', async () => {
     const dark = await context.newPage();

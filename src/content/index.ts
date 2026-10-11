@@ -1,6 +1,22 @@
 import { isAllowedOrigin, isPullRequestFilesPage, parsePullRequestUrl } from '../shared/githubContext';
-import type { FetchTextResponse, GitHubLineInfo, GoToLineResponse, Message, PullRequestRef, ReviewRequest } from '../shared/types';
-import { extractPageRevisions, readLineInfo, resolveTheme, revealLine, type FileHeader } from './github';
+import type {
+  FetchTextResponse,
+  GitHubLineInfo,
+  GoToLineResponse,
+  Message,
+  PullRequestFile,
+  PullRequestRef,
+  ReviewRequest,
+} from '../shared/types';
+import {
+  extractPageRevisions,
+  extractPullRequestFiles,
+  readLineInfo,
+  resolveTheme,
+  revealFile,
+  revealLine,
+  type FileHeader,
+} from './github';
 import { injectButtons } from './injectButton';
 
 const SCAN_DELAY_MS = 150;
@@ -83,6 +99,16 @@ function handleMessage(message: Message, _sender: chrome.runtime.MessageSender, 
       }
       revealLine(message.anchor, message.lineKey, message.startComment).then(sendResponse);
       return true;
+    case 'diffsanity:listFiles': {
+      const files: PullRequestFile[] = showsPullRequest(message.pullRequest)
+        ? extractPullRequestFiles(document, message.pullRequest.pr)
+        : [];
+      sendResponse(files);
+      return false;
+    }
+    case 'diffsanity:revealFile':
+      sendResponse(showsPullRequest(message.pullRequest) && revealFile(message.anchor));
+      return false;
     default:
       return false;
   }

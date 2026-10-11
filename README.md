@@ -10,6 +10,7 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - **Old and new line numbers** are shown side by side in the gutter.
 - **Syntax highlighting** follows GitHub's colours.
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
+- **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree with its status. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it, or hide it with the button at the top left.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
 - **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
@@ -69,19 +70,24 @@ flowchart LR
     R --> X[renderer.ts]
     R --> M[minimap.ts<br/>canvas]
     R --> K[comments.ts<br/>+ button, thread markers]
+    R --> T[fileTree.ts + sidebar.ts<br/>PR file list]
   end
-  F -. fallback fetch .-> C
+  F -. fallback fetch, listFiles .-> C
   K -. lineInfo / goToLine .-> C
+  R -. revealFile .-> C
 ```
 
 | Path | Responsibility |
 | --- | --- |
-| `src/content/github.ts` | **The only module that knows GitHub's DOM.** Finds file headers (path, old path, status, anchor), the commits being compared and the colour mode. It also reads which diff lines and review threads GitHub renders, and opens GitHub's comment box. |
+| `src/content/github.ts` | **The only module that knows GitHub's DOM.** Finds file headers (path, old path, status, anchor), the PR's full file list, the commits being compared and the colour mode. It also reads which diff lines and review threads GitHub renders, scrolls GitHub to a file, and opens GitHub's comment box. |
 | `src/content/injectButton.ts` | Adds one button per header. Idempotent: it is safe to run on every DOM change. |
 | `src/content/index.ts` | Watches the DOM (`MutationObserver`, throttled to 150 ms) plus `turbo:load`/`popstate`, so buttons survive client-side navigation, lazy-loaded files and re-renders. Acts only on `/pull/N/files` (and `/changes`). |
 | `src/background/index.ts` | Opens `review.html?<request>` next to the source tab. |
 | `src/shared/githubContext.ts` | Pure helpers: URL parsing, commit extraction, rename parsing, raw URLs, review-request (de)serialisation and validation, and the allowed-origin list. |
-| `src/review/fileSource.ts` | Resolves the base/head commits and downloads both file versions. |
+| `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its scroll position, and keeps the URL and the GitHub tab in step with the open file. |
+| `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list (from the GitHub tab, or by fetching the PR page) and downloads both file versions. |
+| `src/review/fileTree.ts` | Builds the folder tree (folders first, single-child folders merged) and renders the file list with filtering and keyboard navigation. |
+| `src/review/sidebar.ts` | Shows, hides and resizes the file list, and remembers its width and visibility in `localStorage`. |
 | `src/review/diff.ts` | Line diff (jsdiff `diffArrays`, 3 s timeout) to a normalised `DiffLine[]` model. |
 | `src/review/syntax.ts` | Highlights whole files with Prism, so multi-line comments and strings are correct, then splits the output into per-line HTML. |
 | `src/review/renderer.ts` | Renders rows at a fixed 20 px height in 200-line `content-visibility: auto` chunks. This keeps large files fast while Ctrl+F still finds everything. |
@@ -103,7 +109,9 @@ All selectors live in `src/content/github.ts` (and the commit regexes in `src/sh
 | --- | --- | --- |
 | File header | `.file-header[data-path]` | `h3 a[href^="#diff-"]` inside `[class*="DiffFileHeader-module__diff-file-header"]` |
 | File path | `data-path` | `[data-file-path]` in the header (missing for added files), else the link text without invisible direction marks (U+200E) |
-| Rename | link `title`/text `old → new` | link text `old → new` |
+| Rename | link `title`/text `old → new` | link text `old → new`, or `.sr-only` text `old renamed to new` |
+| PR file list | `file-tree [data-tree-entry-type="file"]`: path in `[data-filterable-item-text]`, status from the `octicon-diff-*` icon, anchor from `a[href^="#diff-"]` | `script[data-target="react-app.embeddedData"]` → `payload.pullRequestsChangesRoute.diffSummaries` (`path`, `pathDigest`, `changeType`, line counts) |
+| Show a file (from the file list) | `#<anchor>` if rendered, else click `a[href="#<anchor>"]` | same |
 | Deleted | `data-file-deleted="true"` | inferred from a 404 on the head side |
 | Anchor (for "Back") | `data-anchor` | `href="#diff-…"` |
 | Button placement | end of `.file-info` | end of the `h3`'s parent (after GitHub's copy / expand icons) |
@@ -128,10 +136,11 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 - The theme picker applies Azure DevOps Dark, and the choice survives a reload.
 - **Back to GitHub** focuses the source tab and closes the review.
 - Review comments, signed out: thread markers match GitHub's threads, there is no **+**, and a marker scrolls the PR tab to the line.
+- File list: it lists every file in the PR and marks the open one, clicking a file opens it in place, **Alt+↓** / **Alt+↑** move between files, and the list can be hidden and shown again.
 
 Verified by hand while signed in (React view): **+** opens GitHub's "Add a comment on line R116" box with the cursor in it, and thread markers match on a PR with comments.
 
-Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons appear on every file, the review page loads the whole file with the diff, minimap and revisions, and **+** appears on commentable lines.
+Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons appear on every file, the review page loads the whole file with the diff, minimap and revisions, and **+** appears on commentable lines. The file list was checked on two GHE.com PRs (44 and 22 files, including a renamed file): every file is listed and opens without errors.
 
 ## Known limitations
 
@@ -142,7 +151,8 @@ Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons app
 - Commit detection on the React PR page relies on embedded JSON key names that have not been verified. If they are missing, it falls back to the PR HTML and then the public API. The API is rate limited and only works for public repos.
 - Very long lines are measured in `ch` units, so wide (CJK) characters can make the horizontal scroll width slightly short.
 - **github.com and `*.ghe.com` only.** GitHub Enterprise Server (self-hosted, any domain) is not supported: each host would need to be granted at runtime through optional host permissions. On GHE.com the public REST API fallback for commits is not used.
-- Not implemented yet: writing comments inside the review page, a side-by-side view, j/k change navigation, a file tree, word-level highlighting and a native file viewer for images. The normalised `FileDiff` model and the separate renderer and minimap are meant to make these additive.
+- **File list:** the **+** for a file appears once GitHub has rendered that file's lines. Opening a file asks the GitHub tab to show it, so this usually takes a moment. GitHub's "Viewed" checkboxes are not shown or synced. For a renamed file far down a large PR, DiffSanity may need GitHub to render it before it knows the old path.
+- Not implemented yet: writing comments inside the review page, a side-by-side view, j/k change navigation, word-level highlighting and a native file viewer for images. The normalised `FileDiff` model and the separate renderer and minimap are meant to make these additive.
 
 ## Publishing
 

@@ -10,6 +10,11 @@
   </head>
   <body>
     <header class="ds-header">
+      <button id="ds-sidebar-toggle" class="ds-icon-button" type="button" aria-controls="ds-sidebar" aria-label="Changed files" hidden>
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+          <path d="M3.75 1.5h8.5c1.24 0 2.25 1.01 2.25 2.25v8.5c0 1.24-1.01 2.25-2.25 2.25h-8.5A2.25 2.25 0 0 1 1.5 12.25v-8.5C1.5 2.51 2.51 1.5 3.75 1.5ZM3 3.75v8.5c0 .41.34.75.75.75H6V3H3.75a.75.75 0 0 0-.75.75ZM7.5 13h4.75c.41 0 .75-.34.75-.75v-8.5a.75.75 0 0 0-.75-.75H7.5Z" />
+        </svg>
+      </button>
       <a id="ds-back" class="ds-back" title="Back to the pull request on GitHub">← Back to GitHub</a>
       <div class="ds-file" aria-label="File under review">
         <span id="ds-dir" class="ds-dir"></span><strong id="ds-name" class="ds-name"></strong>
@@ -29,6 +34,8 @@
     </header>
     <div id="ds-message" class="ds-message" role="status" hidden></div>
     <main class="ds-main">
+      <nav id="ds-sidebar" class="ds-sidebar" aria-label="Changed files" hidden></nav>
+      <div id="ds-resizer" class="ds-resizer" role="separator" aria-orientation="vertical" title="Drag to resize" hidden></div>
       <div id="ds-scroller" class="ds-scroller" tabindex="0" aria-label="File contents"></div>
       <div id="ds-minimap" class="ds-minimap" aria-hidden="true"></div>
     </main>

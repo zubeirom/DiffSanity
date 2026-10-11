@@ -52,6 +52,7 @@ export class GitHubComments {
   private targets: CommentTargets = mapLineInfo([], NO_LINE_INFO);
   private readonly addButton = document.createElement('button');
   private markers: HTMLElement[] = [];
+  private destroyed = false;
   private readonly pullRequest: PullRequestRef;
 
   constructor(
@@ -67,12 +68,22 @@ export class GitHubComments {
     this.addButton.className = 'ds-comment-add';
     this.addButton.textContent = '+';
     scroller.addEventListener('mouseover', this.onMouseOver, { passive: true });
-    scroller.addEventListener('mouseleave', () => this.addButton.remove());
+    scroller.addEventListener('mouseleave', this.onMouseLeave);
     scroller.addEventListener('click', this.onClick);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') void this.refresh();
-    });
+    document.addEventListener('visibilitychange', this.onVisibilityChange);
     void this.refresh();
+  }
+
+  /** Removes the buttons and listeners, e.g. before another file is shown. */
+  destroy(): void {
+    this.destroyed = true;
+    this.scroller.removeEventListener('mouseover', this.onMouseOver);
+    this.scroller.removeEventListener('mouseleave', this.onMouseLeave);
+    this.scroller.removeEventListener('click', this.onClick);
+    document.removeEventListener('visibilitychange', this.onVisibilityChange);
+    this.addButton.remove();
+    for (const marker of this.markers) marker.remove();
+    this.markers = [];
   }
 
   /** Re-reads the GitHub tab, e.g. after the user commented there. */
@@ -84,6 +95,7 @@ export class GitHubComments {
     } catch {
       // The tab is closed, or runs a content script from before an extension reload.
     }
+    if (this.destroyed) return;
     this.targets = mapLineInfo(this.lines, info ?? NO_LINE_INFO);
     this.addButton.remove();
     this.renderThreadMarkers();
@@ -121,6 +133,12 @@ export class GitHubComments {
     this.addButton.dataset.line = String(index);
     this.addButton.title = `Comment on ${describeLine(key!)} on GitHub`;
     gutter.append(this.addButton);
+  };
+
+  private readonly onMouseLeave = () => this.addButton.remove();
+
+  private readonly onVisibilityChange = () => {
+    if (document.visibilityState === 'visible') void this.refresh();
   };
 
   private readonly onClick = (event: MouseEvent) => {

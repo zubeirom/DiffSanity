@@ -1,6 +1,14 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { extractPageRevisions, findFileHeaders, readLineInfo, resolveTheme, revealLine } from '../src/content/github';
+import {
+  extractPageRevisions,
+  extractPullRequestFiles,
+  findFileHeaders,
+  readLineInfo,
+  resolveTheme,
+  revealFile,
+  revealLine,
+} from '../src/content/github';
 import { injectButtons } from '../src/content/injectButton';
 
 const BASE = '8571e6fd2f04a40dc0341c05897b93ff132b06f8';
@@ -49,6 +57,52 @@ const REACT_ADDED = `
   </div>
 </div>`;
 
+// Trimmed from a live React header for a renamed file: the visible names are shortened, the full text is for screen readers.
+const REACT_RENAMED = `
+<div class="DiffFileHeader-module__diff-file-header__UuNN4">
+  <div class="d-flex px-1 flex-items-center overflow-hidden DiffFileHeader-module__file-path-section__ZcmB1">
+    <h3 class="DiffFileHeader-module__file-name__VVXpg"><a class="Link--primary" href="#diff-fff"><code>
+      <span aria-hidden="true">\u200E…/BusinessDetector.cs\u200E → \u200E…/AuthoredDetector.cs\u200E</span>
+      <span class="sr-only">runtime/Startup/BusinessDetector.cs renamed to runtime/Startup/AuthoredDetector.cs</span>
+    </code></a></h3>
+    <button data-file-path="runtime/Startup/AuthoredDetector.cs">Expand all lines</button>
+  </div>
+</div>`;
+
+// Trimmed from the live React page's embedded data; \`diffContents\` only covers the files GitHub preloaded.
+function reactEmbeddedData(pr: number): string {
+  const route = {
+    pullRequest: { number: pr },
+    diffSummaries: [
+      { path: 'src/app.ts', pathDigest: 'aaa', changeType: 'MODIFIED', linesAdded: 3, linesDeleted: 1 },
+      { path: 'src/new.ts', pathDigest: 'bbb', changeType: 'RENAMED', linesAdded: 0, linesDeleted: 0 },
+      { path: 'runtime/Startup/AuthoredDetector.cs', pathDigest: 'fff', changeType: 'RENAMED', linesAdded: 4, linesDeleted: 2 },
+      { path: 'gone.txt', pathDigest: 'ccc', changeType: 'REMOVED', linesAdded: 0, linesDeleted: 7 },
+    ],
+    diffContents: [{ path: 'src/new.ts', oldTreeEntry: { path: 'src/old.ts' }, newTreeEntry: { path: 'src/new.ts' } }],
+  };
+  return `<script type="application/json" data-target="react-app.embeddedData">${JSON.stringify({
+    payload: { pullRequestsChangesRoute: route },
+  })}</script>`;
+}
+
+// Trimmed from the live classic \`<file-tree>\` sidebar.
+const CLASSIC_TREE = `
+<file-tree>
+  <ul>
+    <li data-tree-entry-type="directory"><span data-filterable-item-text hidden>src</span></li>
+    <li id="file-tree-item-diff-aaa" data-tree-entry-type="file" data-file-deleted="false">
+      <a href="#diff-aaa"><svg class="octicon octicon-diff-modified"></svg><span data-filterable-item-text hidden>src/app.ts</span>app.ts</a>
+    </li>
+    <li id="file-tree-item-diff-bbb" data-tree-entry-type="file" data-file-deleted="false">
+      <a href="#diff-bbb"><svg class="octicon octicon-diff-renamed"></svg><span data-filterable-item-text hidden>src/dataTransfer.ts</span>dataTransfer.ts</a>
+    </li>
+    <li id="file-tree-item-diff-ccc" data-tree-entry-type="file" data-file-deleted="true">
+      <a href="#diff-ccc"><svg class="octicon octicon-diff-removed"></svg><span data-filterable-item-text hidden>old.txt</span>old.txt</a>
+    </li>
+  </ul>
+</file-tree>`;
+
 beforeEach(() => {
   document.documentElement.removeAttribute('data-color-mode');
   document.body.innerHTML = '';
@@ -86,6 +140,13 @@ describe('findFileHeaders', () => {
       '\u200Esrc/old.cs\u200E → \u200Esrc/new.cs\u200E',
     );
     expect(findFileHeaders()).toMatchObject([{ path: 'src/new.cs', oldPath: 'src/old.cs', status: 'renamed' }]);
+  });
+
+  it('reads React renames from the screen-reader text when the visible names are shortened', () => {
+    document.body.innerHTML = REACT_RENAMED;
+    expect(findFileHeaders()).toMatchObject([
+      { path: 'runtime/Startup/AuthoredDetector.cs', oldPath: 'runtime/Startup/BusinessDetector.cs', status: 'renamed', anchor: 'diff-fff' },
+    ]);
   });
 
   it('ignores headings that are not file headers', () => {
@@ -239,5 +300,76 @@ describe('revealLine', () => {
     document.body.innerHTML = REACT_LINES;
     await expect(revealLine('diff-abc', 'R40', true)).resolves.toEqual({ found: false, commentBoxOpened: false });
     await expect(revealLine('diff-abc', 'X1', true)).resolves.toEqual({ found: false, commentBoxOpened: false });
+  });
+});
+
+describe('extractPullRequestFiles', () => {
+  it('lists every React file from the embedded data, adding old paths from rendered headers', () => {
+    document.body.innerHTML = reactEmbeddedData(7) + REACT_RENAMED;
+    expect(extractPullRequestFiles(document, 7)).toEqual([
+      { path: 'src/app.ts', oldPath: undefined, status: 'modified', anchor: 'diff-aaa', additions: 3, deletions: 1 },
+      { path: 'src/new.ts', oldPath: 'src/old.ts', status: 'renamed', anchor: 'diff-bbb', additions: 0, deletions: 0 },
+      {
+        path: 'runtime/Startup/AuthoredDetector.cs',
+        oldPath: 'runtime/Startup/BusinessDetector.cs',
+        status: 'renamed',
+        anchor: 'diff-fff',
+        additions: 4,
+        deletions: 2,
+      },
+      { path: 'gone.txt', oldPath: undefined, status: 'deleted', anchor: 'diff-ccc', additions: 0, deletions: 7 },
+    ]);
+  });
+
+  it('ignores embedded data of another pull request', () => {
+    document.body.innerHTML = reactEmbeddedData(8) + REACT;
+    expect(extractPullRequestFiles(document, 7)).toEqual([
+      { path: 'lib/util.py', oldPath: undefined, status: undefined, anchor: 'diff-ddd' },
+    ]);
+  });
+
+  it('lists every classic file from the file tree, adding old paths from rendered headers', () => {
+    document.body.innerHTML = CLASSIC_TREE + CLASSIC;
+    expect(extractPullRequestFiles(document, 1)).toEqual([
+      { path: 'src/app.ts', status: 'modified', anchor: 'diff-aaa' },
+      { path: 'src/dataTransfer.ts', oldPath: 'src/dnd.ts', status: 'renamed', anchor: 'diff-bbb' },
+      { path: 'old.txt', oldPath: undefined, status: 'deleted', anchor: 'diff-ccc' },
+    ]);
+  });
+
+  it('falls back to the rendered headers', () => {
+    document.body.innerHTML = CLASSIC;
+    expect(extractPullRequestFiles(document, 1).map((file) => file.path)).toEqual(['src/app.ts', 'src/dataTransfer.ts', 'old.txt']);
+  });
+
+  it('works on a fetched copy of the page', () => {
+    const doc = new DOMParser().parseFromString(`<html><body>${reactEmbeddedData(7)}</body></html>`, 'text/html');
+    expect(extractPullRequestFiles(doc, 7)).toHaveLength(4);
+  });
+});
+
+describe('revealFile', () => {
+  beforeEach(() => {
+    Element.prototype.scrollIntoView = vi.fn();
+  });
+
+  it('scrolls to a rendered file', () => {
+    document.body.innerHTML = CLASSIC;
+    expect(revealFile('diff-bbb')).toBe(true);
+    expect(document.getElementById('diff-bbb')!.scrollIntoView).toHaveBeenCalled();
+  });
+
+  it("follows GitHub's file-tree link to a file that is not rendered yet", () => {
+    document.body.innerHTML = CLASSIC_TREE;
+    const onClick = vi.fn((event: Event) => event.preventDefault());
+    document.querySelector('a[href="#diff-ccc"]')!.addEventListener('click', onClick);
+    expect(revealFile('diff-ccc')).toBe(true);
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  it('reports files that are not on the page and rejects invalid anchors', () => {
+    document.body.innerHTML = CLASSIC;
+    expect(revealFile('diff-zzz')).toBe(false);
+    expect(revealFile('diff-a"],body')).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-import type { FileStatus, PullRequestRef, ReviewRequest, Revisions, Theme } from './types';
+import type { FileStatus, PullRequestFile, PullRequestRef, ReviewRequest, Revisions, Theme } from './types';
 
 const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/([^/]+))?/;
 const FILES_TABS = new Set(['files', 'changes']);
@@ -44,9 +44,12 @@ export function extractRevisionsFromText(text: string): Revisions {
   return { baseSha: firstMatch(text, BASE_PATTERNS), headSha: firstMatch(text, HEAD_PATTERNS) };
 }
 
-/** Splits GitHub's rename notation `old/path → new/path`. */
+/** GitHub writes renames as `old/path → new/path`, or `old/path renamed to new/path` for screen readers. */
+const RENAME_SEPARATOR = /\s*→\s*|\s+renamed to\s+/;
+
+/** Splits GitHub's rename notation into the old and new path. */
 export function parseRenamedPath(text: string): { oldPath: string; path: string } | null {
-  const parts = text.split('→').map((part) => part.trim());
+  const parts = text.split(RENAME_SEPARATOR).map((part) => part.trim());
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   return { oldPath: parts[0], path: parts[1] };
 }
@@ -64,6 +67,39 @@ export function pullRequestFilesUrl(request: Pick<ReviewRequest, 'origin' | 'own
 
 const STATUSES: readonly FileStatus[] = ['added', 'deleted', 'renamed', 'modified'];
 const SHA_ONLY = new RegExp(`^${SHA}$`);
+
+function isStatus(value: unknown): value is FileStatus {
+  return STATUSES.includes(value as FileStatus);
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined;
+}
+
+function optionalCount(value: unknown): number | undefined {
+  return Number.isInteger(value) && (value as number) >= 0 ? (value as number) : undefined;
+}
+
+/** Validates a file list received from another part of the extension, dropping malformed entries. */
+export function toPullRequestFiles(value: unknown): PullRequestFile[] {
+  if (!Array.isArray(value)) return [];
+  const files: PullRequestFile[] = [];
+  for (const entry of value as unknown[]) {
+    if (!entry || typeof entry !== 'object') continue;
+    const item = entry as Record<string, unknown>;
+    const path = optionalString(item.path);
+    if (!path) continue;
+    files.push({
+      path,
+      oldPath: optionalString(item.oldPath),
+      status: isStatus(item.status) ? item.status : undefined,
+      anchor: optionalString(item.anchor),
+      additions: optionalCount(item.additions),
+      deletions: optionalCount(item.deletions),
+    });
+  }
+  return files;
+}
 
 /** Serialises a review request into query parameters for the review page. */
 export function toReviewSearch(request: ReviewRequest): string {
@@ -89,7 +125,7 @@ export function fromReviewSearch(search: string): ReviewRequest | null {
     const value = params.get(key);
     return value && SHA_ONLY.test(value) ? value : undefined;
   };
-  const status = params.get('status') as FileStatus | null;
+  const status = params.get('status');
   const theme = params.get('theme');
   const sourceTabId = Number(params.get('sourceTabId'));
 
@@ -100,7 +136,7 @@ export function fromReviewSearch(search: string): ReviewRequest | null {
     pr,
     path,
     oldPath: params.get('oldPath') ?? undefined,
-    status: status && STATUSES.includes(status) ? status : undefined,
+    status: isStatus(status) ? status : undefined,
     baseSha: optionalSha('baseSha'),
     headSha: optionalSha('headSha'),
     anchor: params.get('anchor') ?? undefined,

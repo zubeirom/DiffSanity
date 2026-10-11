@@ -199,9 +199,16 @@ export class Minimap {
     this.scroller.scrollTop = scrollTopForMinimapY(y - (this.dragOffset ?? 0), this.lineHeight, this.scale);
   }
 
+  /** Stops listening and clears the minimap, e.g. before another file is shown. */
   destroy(): void {
     this.resizeObserver.disconnect();
+    this.host.removeEventListener('pointerdown', this.onPointerDown);
+    this.host.removeEventListener('pointermove', this.onPointerMove);
+    this.host.removeEventListener('pointerup', this.onPointerUp);
+    this.host.removeEventListener('pointercancel', this.onPointerUp);
+    this.host.classList.remove('ds-dragging');
     this.scroller.removeEventListener('scroll', this.scheduleViewportUpdate);
     cancelAnimationFrame(this.frame);
+    this.host.replaceChildren();
   }
 }

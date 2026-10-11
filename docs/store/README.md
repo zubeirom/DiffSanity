@@ -23,6 +23,7 @@ GitHub's "Files changed" view shows small slices of each file, which makes it ha
 • The whole file as one unified diff, so every change is read in context
 • Syntax highlighting for common languages
 • A minimap of the full file with additions, deletions and comments; click or drag to jump
+• Every changed file in a list on the left, like GitHub's, so you can move through the whole pull request without leaving the tab
 • Existing review conversations shown inline
 • Write a comment on any changed line; DiffSanity hands it to GitHub's own comment box, so nothing is posted without you
 • Colour themes: Match GitHub, GitHub Light / Dark, and Azure DevOps Dark / Light

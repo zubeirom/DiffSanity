@@ -1,5 +1,6 @@
-import { extractRevisionsFromText, pullRequestFilesUrl, rawFileUrl } from '../shared/githubContext';
-import type { FetchTextResponse, FileStatus, Message, ReviewRequest, Revisions } from '../shared/types';
+import { extractPullRequestFiles } from '../content/github';
+import { extractRevisionsFromText, pullRequestFilesUrl, rawFileUrl, toPullRequestFiles } from '../shared/githubContext';
+import type { FetchTextResponse, FileStatus, Message, PullRequestFile, ReviewRequest, Revisions } from '../shared/types';
 
 export class LoadError extends Error {}
 
@@ -74,12 +75,40 @@ async function resolveRevisions(request: ReviewRequest): Promise<Required<Revisi
   return { baseSha: revisions.baseSha, headSha: revisions.headSha };
 }
 
+/** Asks the GitHub tab DiffSanity was opened from for the changed files it shows. Empty when it cannot answer. */
+export async function listSourceTabFiles(request: ReviewRequest): Promise<PullRequestFile[]> {
+  const { owner, repo, pr, sourceTabId } = request;
+  if (sourceTabId === undefined) return [];
+  try {
+    const message: Message = { type: 'diffsanity:listFiles', pullRequest: { owner, repo, pr } };
+    return toPullRequestFiles(await chrome.tabs.sendMessage(sourceTabId, message));
+  } catch {
+    // The tab is closed, or runs a content script from before an extension reload.
+    return [];
+  }
+}
+
+/**
+ * Lists every changed file of the pull request. The GitHub tab DiffSanity was opened from is asked first, as it
+ * also knows what GitHub rendered there (e.g. where renamed files came from); otherwise the "Files changed" page is fetched.
+ */
+export async function loadPullRequestFiles(request: ReviewRequest): Promise<PullRequestFile[]> {
+  const files = await listSourceTabFiles(request);
+  if (files.length) return files;
+  const page = await fetchText(pullRequestFilesUrl({ ...request, anchor: undefined }), request.sourceTabId);
+  if (!page.text) return [];
+  return extractPullRequestFiles(new DOMParser().parseFromString(page.text, 'text/html'), request.pr);
+}
+
 function looksBinary(text: string): boolean {
   return text.slice(0, 8000).includes('\u0000');
 }
 
 /** Retrieves the full old and new versions of the file under review. */
 export async function loadFileContents(request: ReviewRequest): Promise<FileContents> {
+  if (request.status === 'renamed' && !request.oldPath) {
+    throw new LoadError('GitHub has not said yet where this file was renamed from. Scroll to it on the GitHub tab, then open it again.');
+  }
   const revisions = await resolveRevisions(request);
   const { origin, owner, repo, sourceTabId } = request;
   const oldPath = request.oldPath ?? request.path;

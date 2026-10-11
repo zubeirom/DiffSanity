@@ -32,6 +32,19 @@ export interface ReviewRequest {
   sourceTabId?: number;
 }
 
+/** One changed file of a pull request, as GitHub lists it on the "Files changed" tab. */
+export interface PullRequestFile {
+  /** Path at the head revision. */
+  path: string;
+  /** Path at the base revision when the file was renamed. */
+  oldPath?: string;
+  status?: FileStatus;
+  /** GitHub's `diff-<hash>` anchor of the file. */
+  anchor?: string;
+  additions?: number;
+  deletions?: number;
+}
+
 export interface Revisions {
   baseSha?: string;
   headSha?: string;
@@ -83,7 +96,11 @@ export type Message =
   | { type: 'diffsanity:open'; request: ReviewRequest; background: boolean }
   | { type: 'diffsanity:fetchText'; url: string }
   | { type: 'diffsanity:lineInfo'; pullRequest: PullRequestRef; anchor: string }
-  | { type: 'diffsanity:goToLine'; pullRequest: PullRequestRef; anchor: string; lineKey: string; startComment: boolean };
+  | { type: 'diffsanity:goToLine'; pullRequest: PullRequestRef; anchor: string; lineKey: string; startComment: boolean }
+  /** Answered with the pull request's `PullRequestFile[]` (empty when the tab shows something else). */
+  | { type: 'diffsanity:listFiles'; pullRequest: PullRequestRef }
+  /** Scrolls the GitHub tab to a file, so it is where the user left off and GitHub loads its diff. */
+  | { type: 'diffsanity:revealFile'; pullRequest: PullRequestRef; anchor: string };
 
 export interface FetchTextResponse {
   ok: boolean;
