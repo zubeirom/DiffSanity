@@ -7,7 +7,7 @@ Copy-paste text and assets for the [Chrome Web Store](https://chrome.google.com/
 | Field | Value |
 | --- | --- |
 | Name | DiffSanity |
-| Summary (≤132 chars; comes from `manifest.json`) | Bring sanity back to GitHub diffs. Review a pull request file with full context, syntax highlighting and a minimap. |
+| Summary (≤132 chars; comes from `manifest.json`) | Bring sanity back to GitHub diffs. Review pull requests with whole-file diffs, a file list, syntax highlighting and a minimap. |
 | Category | Developer Tools |
 | Language | English |
 | Homepage / support URL | https://github.com/zubeirom/DiffSanity |
@@ -18,12 +18,12 @@ Copy-paste text and assets for the [Chrome Web Store](https://chrome.google.com/
 ```text
 Bring sanity back to GitHub diffs.
 
-GitHub's "Files changed" view shows small slices of each file, which makes it hard to understand a change in context. DiffSanity adds a button to every file header in a pull request. Click it to open that file in a focused review tab, the way Azure DevOps shows it:
+GitHub's "Files changed" view shows small slices of each file, which makes it hard to understand a change in context. DiffSanity adds a button to every file header in a pull request. Click it to review the pull request in a focused tab, the way Azure DevOps shows it:
 
 • The whole file as one unified diff, so every change is read in context
+• Every changed file in a list on the left, like GitHub's, so you can move through the whole pull request without leaving the tab
 • Syntax highlighting for common languages
 • A minimap of the full file with additions, deletions and comments; click or drag to jump
-• Every changed file in a list on the left, like GitHub's, so you can move through the whole pull request without leaving the tab
 • Existing review conversations shown inline
 • Write a comment on any changed line; DiffSanity hands it to GitHub's own comment box, so nothing is posted without you
 • Colour themes: Match GitHub, GitHub Light / Dark, and Azure DevOps Dark / Light
@@ -38,7 +38,7 @@ Works on github.com and GitHub Enterprise Cloud (GHE.com) pull requests, in both
 **Single purpose**
 
 ```text
-DiffSanity opens a file from a GitHub pull request in a focused review tab that shows the whole file as one diff, with syntax highlighting, a minimap and GitHub's review comments, so reviewers can read each change in context.
+DiffSanity opens a GitHub pull request in a focused review tab that shows each changed file as one whole-file diff, with a list of the pull request's files, syntax highlighting, a minimap and GitHub's review comments, so reviewers can read each change in context.
 ```
 
 **Host permission justification**
@@ -67,7 +67,7 @@ All requests go only to GitHub, directly from the user's browser, using their ex
 
 | File | Use |
 | --- | --- |
-| `screenshot-1-github.png` … `screenshot-5-comments.png` (1280×800, full bleed) | Screenshots, both stores, in this order |
+| `screenshot-1-github.png`, `screenshot-2-file-list.png`, `screenshot-3-ado-dark.png`, `screenshot-4-dark.png`, `screenshot-5-comments.png` (1280×800, full bleed) | Screenshots, both stores, in this order |
 | `promo-small-440x280.png` | Chrome small promo tile (required); Edge small promotional tile |
 | `promo-marquee-1400x560.png` | Chrome marquee; Edge large promotional tile (optional) |
 | `logo-300.png` | Edge extension logo (Chrome uses `icons/icon-128.png` from the zip) |
