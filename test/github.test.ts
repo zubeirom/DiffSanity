@@ -39,6 +39,16 @@ const REACT = `
   </div>
 </div>`;
 
+// Trimmed from a live React header for an added file: no `[data-file-path]` button, and GitHub wraps the name in U+200E marks.
+const REACT_ADDED = `
+<div class="DiffFileHeader-module__diff-file-header__UuNN4">
+  <div class="d-flex flex-shrink-0"><button aria-labelledby="_r_g3_"></button></div>
+  <div class="d-flex px-1 flex-items-center overflow-hidden DiffFileHeader-module__file-path-section__ZcmB1">
+    <h3 class="DiffFileHeader-module__file-name__VVXpg"><a class="Link--primary" href="#diff-eee"><code>\u200Esrc/OfficeAgent/TokenSource.cs\u200E</code></a></h3>
+    <button aria-labelledby="_r_g6_"></button>
+  </div>
+</div>`;
+
 beforeEach(() => {
   document.documentElement.removeAttribute('data-color-mode');
   document.body.innerHTML = '';
@@ -63,6 +73,19 @@ describe('findFileHeaders', () => {
     expect(file.target).toBe(document.querySelector('h3')!.parentElement);
     injectButtons(() => {});
     expect(file.target.lastElementChild!.className).toBe('diffsanity-button');
+  });
+
+  it('reads the path from the link text, without invisible marks, when the header has no path attribute', () => {
+    document.body.innerHTML = REACT_ADDED;
+    expect(findFileHeaders()).toMatchObject([{ path: 'src/OfficeAgent/TokenSource.cs', oldPath: undefined, anchor: 'diff-eee' }]);
+  });
+
+  it('reads React renames from link text with invisible marks', () => {
+    document.body.innerHTML = REACT_ADDED.replace(
+      '\u200Esrc/OfficeAgent/TokenSource.cs\u200E',
+      '\u200Esrc/old.cs\u200E → \u200Esrc/new.cs\u200E',
+    );
+    expect(findFileHeaders()).toMatchObject([{ path: 'src/new.cs', oldPath: 'src/old.cs', status: 'renamed' }]);
   });
 
   it('ignores headings that are not file headers', () => {

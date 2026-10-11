@@ -92,7 +92,7 @@ flowchart LR
 ### How the file is retrieved
 
 1. **Commits.** The commits are read from the PR page when the button is clicked, from `start_commit_oid`/`base_commit_oid` and `end_commit_oid` in GitHub's lazy-load URLs. The base is the **merge base** (or the start of a selected commit range), which is what GitHub diffs against, not the base-branch tip. If they are missing, the review page fetches the PR page HTML itself. As a last resort it uses the public REST API (`pulls/N`, then `compare` for the merge base).
-2. **Contents.** Both files are fetched from `{origin}/{owner}/{repo}/raw/{sha}/{path}`, where the origin is `https://github.com` or `https://<enterprise>.ghe.com`. Renamed files use the old path for the base. If the review page's own request is refused, it asks the content script in the GitHub tab to fetch the file from the page's origin.
+2. **Contents.** Both files are fetched from `{origin}/{owner}/{repo}/raw/{sha}/{path}`, where the origin is `https://github.com` or `https://<enterprise>.ghe.com`. Renamed files use the old path for the base. If the review page's own request is refused, it asks the content script in the GitHub tab to fetch the file from the page's origin. That request sends cookies to the page's origin only, because the raw host it redirects to (with a token in the URL) refuses cross-origin requests that carry cookies.
 3. **Status.** A 404 on one side means the file was added or deleted. Binary files (any NUL character in the first 8 KB) are rejected with a message.
 
 ## GitHub DOM dependencies
@@ -102,7 +102,7 @@ All selectors live in `src/content/github.ts` (and the commit regexes in `src/sh
 | What | Classic (server-rendered) view | React ("new Files changed") view |
 | --- | --- | --- |
 | File header | `.file-header[data-path]` | `h3 a[href^="#diff-"]` inside `[class*="DiffFileHeader-module__diff-file-header"]` |
-| File path | `data-path` | `[data-file-path]` in the header, else the link text |
+| File path | `data-path` | `[data-file-path]` in the header (missing for added files), else the link text without invisible direction marks (U+200E) |
 | Rename | link `title`/text `old → new` | link text `old → new` |
 | Deleted | `data-file-deleted="true"` | inferred from a 404 on the head side |
 | Anchor (for "Back") | `data-anchor` | `href="#diff-…"` |

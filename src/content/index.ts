@@ -40,11 +40,13 @@ function scheduleScan(): void {
 /**
  * Fetches a same-origin GitHub URL with the page's session. Used by the review page as a fallback
  * when its own request is not authorised (e.g. private repositories).
+ * Cookies go to the page's origin only: `/raw/` redirects to a raw host (e.g. `raw.<enterprise>.ghe.com`)
+ * with a token in the URL, and that host refuses cross-origin requests that carry cookies.
  */
 async function fetchText(url: string): Promise<FetchTextResponse> {
   if (!url.startsWith(`${location.origin}/`)) return { ok: false, status: 0 };
   try {
-    const response = await fetch(url, { credentials: 'include' });
+    const response = await fetch(url, { credentials: 'same-origin' });
     return { ok: response.ok, status: response.status, text: response.ok ? await response.text() : undefined };
   } catch {
     return { ok: false, status: 0 };

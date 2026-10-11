@@ -24,6 +24,13 @@ export interface FileHeader {
 const CLASSIC_HEADER = '.file-header[data-path]';
 const REACT_FILE_LINK = 'h3 a[href^="#diff-"]';
 const REACT_HEADER = '[class*="DiffFileHeader-module__diff-file-header"]';
+/** Invisible direction marks (e.g. U+200E) GitHub wraps around file names so they read left to right. */
+const BIDI_MARKS = /[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+
+/** Text as the user sees it: without invisible direction marks, which are not part of a file path. */
+function visibleText(text: string | null | undefined): string {
+  return (text ?? '').replace(BIDI_MARKS, '').trim();
+}
 
 function anchorFromHref(link: HTMLAnchorElement | null): string | undefined {
   const hash = link?.getAttribute('href') ?? '';
@@ -36,7 +43,7 @@ function classicHeader(header: HTMLElement): FileHeader | null {
   if (!target || !path) return null;
 
   const link = target.querySelector<HTMLAnchorElement>('a[href^="#diff-"]');
-  const renamed = parseRenamedPath(link?.getAttribute('title') ?? link?.textContent ?? '');
+  const renamed = parseRenamedPath(visibleText(link?.getAttribute('title') ?? link?.textContent));
   const deleted = header.dataset.fileDeleted === 'true';
   return {
     header,
@@ -55,8 +62,10 @@ function reactHeader(link: HTMLAnchorElement): FileHeader | null {
   const header = heading.closest<HTMLElement>(REACT_HEADER) ?? heading.parentElement;
   if (!header) return null;
 
-  const renamed = parseRenamedPath(link.textContent ?? '');
-  const path = header.querySelector<HTMLElement>('[data-file-path]')?.dataset.filePath ?? renamed?.path ?? link.textContent?.trim();
+  // Only some headers have a `[data-file-path]` button (e.g. added files have none), so the link text is the fallback.
+  const text = visibleText(link.textContent);
+  const renamed = parseRenamedPath(text);
+  const path = header.querySelector<HTMLElement>('[data-file-path]')?.dataset.filePath ?? renamed?.path ?? text;
   if (!path) return null;
   return {
     header,
