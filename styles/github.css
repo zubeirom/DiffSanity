@@ -30,3 +30,38 @@
 .diffsanity-button svg {
   flex: none;
 }
+
+/* "DiffSanity" button next to GitHub's review button. Styled like Primer's small default buttons. */
+.diffsanity-toolbar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  height: 28px;
+  margin: 0 8px 0 0;
+  padding: 0 10px;
+  border: 1px solid var(--button-default-borderColor-rest, var(--color-btn-border, rgba(31, 35, 40, 0.15)));
+  border-radius: 6px;
+  background: var(--button-default-bgColor-rest, var(--color-btn-bg, #f6f8fa));
+  color: var(--button-default-fgColor-rest, var(--color-btn-text, #25292e));
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.diffsanity-toolbar-button:hover {
+  background: var(--button-default-bgColor-hover, var(--color-btn-hover-bg, #eff2f5));
+}
+
+.diffsanity-toolbar-button:focus-visible {
+  outline: 2px solid var(--focus-outlineColor, var(--color-accent-fg, #0969da));
+  outline-offset: 2px;
+}
+
+.diffsanity-toolbar-button svg {
+  flex: none;
+  color: var(--fgColor-muted, var(--color-fg-muted, #59636e));
+}

@@ -10,7 +10,7 @@ import {
   revealFile,
   revealLine,
 } from '../src/content/github';
-import { injectButtons } from '../src/content/injectButton';
+import { injectButtons, injectToolbarButton } from '../src/content/injectButton';
 
 const BASE = '8571e6fd2f04a40dc0341c05897b93ff132b06f8';
 const HEAD = 'dc73b1a01be8002c3b3c764a1fb4840d05562094';
@@ -172,6 +172,56 @@ describe('injectButtons', () => {
     document.querySelectorAll<HTMLButtonElement>('.diffsanity-button')[1].click();
     expect(onOpen).toHaveBeenCalledOnce();
     expect(onOpen.mock.calls[0][0]).toMatchObject({ path: 'src/dataTransfer.ts', oldPath: 'src/dnd.ts' });
+  });
+});
+
+describe('injectToolbarButton', () => {
+  // Trimmed from the live React toolbar: viewed progress, a divider, then "Submit review".
+  const REACT_TOOLBAR = `
+    <section class="PullRequestFilesToolbar-module__toolbar__ztHN6 prc-Stack-Stack-UQ9k6">
+      <div data-component="Stack" class="prc-Stack-Stack-UQ9k6" data-direction="horizontal">
+        <div class="d-flex PullRequestFilesToolbar-module__file-controls__Tgb8F"><span class="sr-only">0 of 169 files viewed</span></div>
+        <div class="PullRequestFilesToolbar-module__file-controls-divider__zkpAr" data-testid="file-controls-divider"></div>
+        <button data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk ReviewMenuButton-module__ReviewMenuButton__eXO8O">Submit review</button>
+      </div>
+    </section>`;
+  // Trimmed from the live classic toolbar of a signed-out user: the review tools are there but empty.
+  const CLASSIC_TOOLBAR = `
+    <div class="pr-toolbar d-flex js-toggle-stuck">
+      <div class="diffbar details-collapse js-details-container Details flex-1 d-flex flex-items-center width-full flex-wrap gap-2">
+        <div class="flex-auto min-width-0"><details class="diffbar-range-menu"><summary>Changes from <strong>all commits</strong></summary></details></div>
+        <div class="flex-grow-0 flex-shrink-0 pr-review-tools"> </div>
+      </div>
+    </div>`;
+
+  it('places the button right before React\'s "Submit review", once', () => {
+    document.body.innerHTML = REACT_TOOLBAR;
+    expect(injectToolbarButton(() => {})).toBe(true);
+    expect(injectToolbarButton(() => {})).toBe(false);
+    const button = document.querySelector('.diffsanity-toolbar-button')!;
+    expect(button.nextElementSibling!.textContent).toBe('Submit review');
+    expect(document.querySelectorAll('.diffsanity-toolbar-button')).toHaveLength(1);
+  });
+
+  it('places the button first in the classic review tools, also when signed out', () => {
+    document.body.innerHTML = CLASSIC_TOOLBAR;
+    expect(injectToolbarButton(() => {})).toBe(true);
+    expect(document.querySelector('.pr-review-tools')!.firstElementChild!.className).toBe('diffsanity-toolbar-button');
+  });
+
+  it('calls the handler on click without adding a file button', () => {
+    document.body.innerHTML = REACT_TOOLBAR + CLASSIC;
+    const onOpen = vi.fn();
+    injectToolbarButton(onOpen);
+    document.querySelector<HTMLButtonElement>('.diffsanity-toolbar-button')!.click();
+    expect(onOpen).toHaveBeenCalledOnce();
+    expect(injectButtons(() => {})).toBe(3);
+  });
+
+  it('adds nothing when the page has no review toolbar', () => {
+    document.body.innerHTML = CLASSIC;
+    expect(injectToolbarButton(() => {})).toBe(false);
+    expect(document.querySelector('.diffsanity-toolbar-button')).toBeNull();
   });
 });
 

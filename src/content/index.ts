@@ -17,14 +17,13 @@ import {
   resolveTheme,
   revealFile,
   revealLine,
-  type FileHeader,
 } from './github';
-import { injectButtons } from './injectButton';
+import { injectButtons, injectToolbarButton } from './injectButton';
 
 const SCAN_DELAY_MS = 150;
 let scanTimer: number | undefined;
 
-function openReview(file: FileHeader, event: MouseEvent): void {
+function openReview(file: PullRequestFile, event: MouseEvent): void {
   const pullRequest = parsePullRequestUrl(location.href);
   if (!pullRequest) return;
 
@@ -45,9 +44,19 @@ function openReview(file: FileHeader, event: MouseEvent): void {
   });
 }
 
+/** Opens the pull request's first file; the review tab's file list leads to the others. */
+function openPullRequest(event: MouseEvent): void {
+  const pullRequest = parsePullRequestUrl(location.href);
+  const [first] = pullRequest ? extractPullRequestFiles(document, pullRequest.pr) : [];
+  if (first) openReview(first, event);
+  else console.warn('[DiffSanity] Could not find the changed files. Reload the page and try again.');
+}
+
 function scan(): void {
   scanTimer = undefined;
-  if (isPullRequestFilesPage(location.href)) injectButtons(openReview);
+  if (!isPullRequestFilesPage(location.href)) return;
+  injectButtons(openReview);
+  injectToolbarButton(openPullRequest);
 }
 
 /** Coalesces bursts of DOM mutations / navigation events into a single scan. */

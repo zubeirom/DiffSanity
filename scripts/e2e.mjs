@@ -223,6 +223,13 @@ try {
     assert((await renamed.locator('.ds-line:not(.ds-add)').count()) > 0, 'no unchanged lines: old path not loaded');
     await renamed.close();
   });
+  await check('toolbar button opens the first file of the pull request', async () => {
+    const first = await page.locator('file-tree [data-tree-entry-type="file"] [data-filterable-item-text]').first().textContent();
+    const opened = await openReview(context, page, '.diffsanity-toolbar-button');
+    const openedPath = new URL(opened.url()).searchParams.get('path');
+    assert(openedPath === first?.trim(), `opened "${openedPath}", first file is "${first?.trim()}"`);
+    await opened.close();
+  });
 
   console.log('Review comments (signed out, classic view)');
   await page.goto(`${COMMENTS_PR}/files`, { waitUntil: 'domcontentloaded' });

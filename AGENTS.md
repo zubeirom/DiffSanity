@@ -42,7 +42,7 @@ These are product promises. Do not break them without the owner's explicit appro
 | `npm run typecheck` | Every change |
 | `npm test` | Every change. Vitest + jsdom, tests in `test/` |
 | `npm run build` | Every change; output goes to `dist/` |
-| `npm run e2e` | Any change to `src/content`, `src/review` or `manifest.json`. Runs `dist/` against live public PRs (~3 min, 16 checks) |
+| `npm run e2e` | Any change to `src/content`, `src/review` or `manifest.json`. Runs `dist/` against live public PRs (~3 min, 21 checks) |
 
 - Add or update unit tests with every behaviour change. DOM tests use small fixtures **trimmed from live GitHub markup** (see `test/github.test.ts`); add a fixture when GitHub's markup changes.
 - `npm run e2e` overwrites `docs/screenshots/`. Revert them (`git checkout -- docs/screenshots`) unless you mean to update the README images.

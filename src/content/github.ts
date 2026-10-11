@@ -396,3 +396,24 @@ export async function openApproval(doc: Document = document): Promise<OpenApprov
   if (!radio.disabled && !radio.checked) radio.click();
   return { opened: true, approveSelected: radio.checked };
 }
+
+/*
+ * The toolbar row above the diffs, where GitHub's review button sits:
+ * - React: the "Submit review" button; DiffSanity's button goes right before it.
+ * - classic: `.pr-review-tools` at the end of `.pr-toolbar`. It holds "Review changes" and is empty when signed out.
+ */
+const CLASSIC_REVIEW_TOOLS = '.pr-toolbar .pr-review-tools';
+
+/** Where to place DiffSanity's pull request button. */
+export interface ToolbarSlot {
+  target: HTMLElement;
+  position: InsertPosition;
+}
+
+/** Finds the place next to GitHub's review button for DiffSanity's pull request button, or null when there is none. */
+export function findToolbarSlot(doc: Document = document): ToolbarSlot | null {
+  const tools = doc.querySelector<HTMLElement>(CLASSIC_REVIEW_TOOLS);
+  if (tools) return { target: tools, position: 'afterbegin' };
+  const button = findReviewButton(doc);
+  return button ? { target: button, position: 'beforebegin' } : null;
+}

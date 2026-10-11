@@ -4,7 +4,7 @@
 
 **Bring sanity back to GitHub diffs.**
 
-DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull requests. It adds a **DiffSanity** icon button to every file on a PR's *Files changed* tab. The button opens that file in a focused review page:
+DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull requests. It adds a **DiffSanity** icon button to every file on a PR's *Files changed* tab, and a **DiffSanity** button next to GitHub's **Submit review** that opens the PR's first file. The button opens that file in a focused review page:
 
 - The **whole file** is shown, not just the diff hunks, as a unified diff with changes highlighted.
 - **Old and new line numbers** are shown side by side in the gutter.
@@ -83,7 +83,7 @@ flowchart LR
 | Path | Responsibility |
 | --- | --- |
 | `src/content/github.ts` | **The only module that knows GitHub's DOM.** Finds file headers (path, old path, status, anchor), the PR's full file list, the commits being compared and the colour mode. It also reads which diff lines and review threads GitHub renders, scrolls GitHub to a file, and opens GitHub's comment box. |
-| `src/content/injectButton.ts` | Adds one button per header. Idempotent: it is safe to run on every DOM change. |
+| `src/content/injectButton.ts` | Adds one button per header, and one pull request button next to GitHub's review button. Idempotent: it is safe to run on every DOM change. |
 | `src/content/index.ts` | Watches the DOM (`MutationObserver`, throttled to 150 ms) plus `turbo:load`/`popstate`, so buttons survive client-side navigation, lazy-loaded files and re-renders. Acts only on `/pull/N/files` (and `/changes`). |
 | `src/background/index.ts` | Opens `review.html?<request>` next to the source tab. |
 | `src/shared/githubContext.ts` | Pure helpers: URL parsing, commit extraction, rename parsing, raw URLs, review-request (de)serialisation and validation, and the allowed-origin list. |
@@ -120,6 +120,7 @@ All selectors live in `src/content/github.ts` (and the commit regexes in `src/sh
 | Deleted | `data-file-deleted="true"` | inferred from a 404 on the head side |
 | Anchor (for "Back") | `data-anchor` | `href="#diff-…"` |
 | Button placement | end of `.file-info` | end of the `h3`'s parent (after GitHub's copy / expand icons) |
+| Pull request button | start of `.pr-toolbar .pr-review-tools` (before "Review changes"; empty when signed out) | just before the "Submit review" button (see *Review box*) |
 | Commits | `[data-url*="commit_oid"]` / `[src*="commit_oid"]`, then `script[type="application/json"]`, then `.file-header a[href*="/blob/<sha>/"]`, then the full page HTML | same sources |
 | Theme | `html[data-color-mode]` (`auto` resolves via `prefers-color-scheme`) | same |
 | Diff line (`<anchor>R12` / `<anchor>L7`) | `td[id]` (line-number cells) | `td[data-line-anchor]` (code cell) |
@@ -128,7 +129,7 @@ All selectors live in `src/content/github.ts` (and the commit regexes in `src/sh
 | Review box ("Approve") | `input[name="pull_request_review[event]"][value="approve"]` inside the "Review changes" `<details>`, which is opened | click `button[class*="ReviewMenuButton-module__ReviewMenuButton"]` (or a button whose text starts with "Submit review"), then `input[name="reviewEvent"][value="approve"]` |
 | Signed in | `meta[name="user-login"]` has content | same |
 
-The selectors rely on semantic data attributes and stable link shapes rather than generated class names. There are two exceptions. A substring match on `DiffFileHeader-module__diff-file-header` is only used to find the header root; if it is missing, the `h3`'s parent is used instead. A substring match on `ReviewMenuButton-module__ReviewMenuButton` finds the "Submit review" button; if it is missing, the button is found by its text.
+The selectors rely on semantic data attributes and stable link shapes rather than generated class names. There are two exceptions. A substring match on `DiffFileHeader-module__diff-file-header` is only used to find the header root; if it is missing, the `h3`'s parent is used instead. A substring match on `ReviewMenuButton-module__ReviewMenuButton` finds the "Submit review" button (for *Approve* and the pull request button); if it is missing, the button is found by its text.
 
 ## Tested
 
@@ -137,6 +138,7 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 - A 15-file PR: one button per header, the review renders the whole file with line numbers, highlighting and changes, and a minimap click scrolls.
 - A 2,745-line file renders in about 0.5 s, and clicking the bottom of the minimap reaches the end of the file.
 - A renamed file loads the old path and shows "renamed from".
+- The pull request button in the toolbar opens the PR's first file.
 - Navigating Conversation → Files changed works. A `pushState` URL change plus a newly rendered file header gets a button only on the Files tab.
 - Light and dark mode on both GitHub and the review page.
 - The theme picker applies Azure DevOps Dark, and the choice survives a reload.

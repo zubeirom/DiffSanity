@@ -18,7 +18,7 @@ Copy-paste text and assets for the [Chrome Web Store](https://chrome.google.com/
 ```text
 Bring sanity back to GitHub diffs.
 
-GitHub's "Files changed" view shows small slices of each file, which makes it hard to understand a change in context. DiffSanity adds a button to every file header in a pull request. Click it to review the pull request in a focused tab, the way Azure DevOps shows it:
+GitHub's "Files changed" view shows small slices of each file, which makes it hard to understand a change in context. DiffSanity adds a button to every file header in a pull request, and one next to GitHub's Submit review button. Click it to review the pull request in a focused tab, the way Azure DevOps shows it:
 
 • The whole file as one unified diff, so every change is read in context
 • Every changed file in a list on the left, like GitHub's, so you can move through the whole pull request without leaving the tab
