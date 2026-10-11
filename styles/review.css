@@ -292,6 +292,10 @@
     color: var(--ds-fg-muted);
   }
 
+  .ds-button-approve svg {
+    color: var(--ds-add-fg);
+  }
+
   .ds-chip {
     gap: 6px;
     height: 28px;

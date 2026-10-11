@@ -91,6 +91,13 @@ export interface GoToLineResponse {
   commentBoxOpened: boolean;
 }
 
+export interface OpenApprovalResponse {
+  /** True when GitHub's review box is open. */
+  opened: boolean;
+  /** True when "Approve" is selected in it; GitHub disables it e.g. for the pull request's author. */
+  approveSelected: boolean;
+}
+
 /** Messages exchanged between the content script, background worker and review page. */
 export type Message =
   | { type: 'diffsanity:open'; request: ReviewRequest; background: boolean }
@@ -100,7 +107,9 @@ export type Message =
   /** Answered with the pull request's `PullRequestFile[]` (empty when the tab shows something else). */
   | { type: 'diffsanity:listFiles'; pullRequest: PullRequestRef }
   /** Scrolls the GitHub tab to a file, so it is where the user left off and GitHub loads its diff. */
-  | { type: 'diffsanity:revealFile'; pullRequest: PullRequestRef; anchor: string };
+  | { type: 'diffsanity:revealFile'; pullRequest: PullRequestRef; anchor: string }
+  /** Opens GitHub's review box with "Approve" selected; answered with `OpenApprovalResponse`. The user submits it. */
+  | { type: 'diffsanity:openApproval'; pullRequest: PullRequestRef };
 
 export interface FetchTextResponse {
   ok: boolean;

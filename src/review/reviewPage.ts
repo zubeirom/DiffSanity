@@ -1,5 +1,5 @@
 import { fromReviewSearch, pullRequestFilesUrl, toReviewSearch } from '../shared/githubContext';
-import type { Message, PullRequestFile, ReviewRequest, Theme } from '../shared/types';
+import type { Message, OpenApprovalResponse, PullRequestFile, ReviewRequest, Theme } from '../shared/types';
 import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { diffstatBlocks } from './diffstat';
@@ -8,6 +8,7 @@ import { listSourceTabFiles, loadFileContents, loadPullRequestFiles, LoadError, 
 import { Minimap } from './minimap';
 import { LINE_HEIGHT, renderDiff } from './renderer';
 import { setupSidebar } from './sidebar';
+import { focusReviewTab, sendToSourceTab } from './sourceTab';
 import { highlightLines } from './syntax';
 import { loadThemeChoice, parseThemeChoice, resolveThemeId, saveThemeChoice, THEME_STORAGE_KEY, THEMES } from './themes';
 
@@ -183,7 +184,24 @@ class ReviewPage {
     element('#ds-pr-number').textContent = `#${session.pr}`;
     pr.title = `Pull request ${session.owner}/${session.repo} #${session.pr} on GitHub`;
     pr.href = pullRequestFilesUrl({ ...session, anchor: undefined });
+    const approve = element<HTMLButtonElement>('#ds-approve');
+    approve.hidden = session.sourceTabId === undefined;
+    approve.addEventListener('click', () => void this.openApproval());
     document.addEventListener('keydown', this.onKeyDown);
+  }
+
+  /** Hands the approval to GitHub: its review box opens with "Approve" selected, and the user submits it there. */
+  private async openApproval(): Promise<void> {
+    const { owner, repo, pr, sourceTabId } = this.session;
+    if (sourceTabId === undefined) return;
+    const message: Message = { type: 'diffsanity:openApproval', pullRequest: { owner, repo, pr } };
+    const response = await sendToSourceTab<OpenApprovalResponse>(sourceTabId, message);
+    if (response?.opened) return;
+    await focusReviewTab();
+    showMessage(
+      "Could not open GitHub's review box. Check that you are signed in, reload the pull request there and try again.",
+      'info',
+    );
   }
 
   /** Redraws theme-dependent canvases. */

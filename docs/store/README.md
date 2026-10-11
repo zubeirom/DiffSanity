@@ -26,6 +26,7 @@ GitHub's "Files changed" view shows small slices of each file, which makes it ha
 • A minimap of the full file with additions, deletions and comments; click or drag to jump
 • Existing review conversations shown inline
 • Write a comment on any changed line; DiffSanity hands it to GitHub's own comment box, so nothing is posted without you
+• Approve from the review tab: GitHub's review box opens with Approve selected, and you press Submit
 • Colour themes: Match GitHub, GitHub Light / Dark, and Azure DevOps Dark / Light
 
 Private by design: everything runs in your browser using your existing GitHub session. No servers, no tracking, no accounts.
@@ -44,7 +45,7 @@ DiffSanity opens a GitHub pull request in a focused review tab that shows each c
 **Host permission justification**
 
 ```text
-github.com and *.ghe.com (GitHub Enterprise Cloud): adds the DiffSanity button to pull request pages, reads the diff and existing review comments from the page, downloads the full old and new versions of the file, and places new comments into GitHub's own comment box (nothing is posted automatically). *.ghe.com is needed because each enterprise has its own subdomain.
+github.com and *.ghe.com (GitHub Enterprise Cloud): adds the DiffSanity button to pull request pages, reads the diff and existing review comments from the page, downloads the full old and new versions of the file, and places new comments and approvals into GitHub's own comment and review boxes (nothing is posted automatically). *.ghe.com is needed because each enterprise has its own subdomain.
 raw.githubusercontent.com: where github.com serves those file downloads from.
 api.github.com: looks up which commits a public pull request compares, only when the page itself does not include them.
 All requests go only to GitHub, directly from the user's browser, using their existing GitHub session. No data is collected or sent anywhere else.

@@ -4,6 +4,7 @@ import {
   extractPageRevisions,
   extractPullRequestFiles,
   findFileHeaders,
+  openApproval,
   readLineInfo,
   resolveTheme,
   revealFile,
@@ -300,6 +301,87 @@ describe('revealLine', () => {
     document.body.innerHTML = REACT_LINES;
     await expect(revealLine('diff-abc', 'R40', true)).resolves.toEqual({ found: false, commentBoxOpened: false });
     await expect(revealLine('diff-abc', 'X1', true)).resolves.toEqual({ found: false, commentBoxOpened: false });
+  });
+});
+
+describe('openApproval', () => {
+  // Trimmed from the live React "Submit review" button and the "Finish your review" box it opens.
+  const REACT_REVIEW_BUTTON = `
+    <button data-component="Button" type="button" class="prc-Button-ButtonBase-9n-Xk ReviewMenuButton-module__ReviewMenuButton__eXO8O">
+      <span class="ReviewMenuButton-module__submitTextFull__wN_rM">Submit <!-- -->review</span><span class="ReviewMenuButton-module__submitTextShort__zl992">Review</span>
+    </button>`;
+  const reactReviewBox = (approveDisabled: boolean) => `
+    <div role="dialog" data-component="AnchoredOverlay" aria-labelledby="anchored-review-title">
+      <h1 id="anchored-review-title">Finish your review</h1>
+      <fieldset data-component="RadioGroup">
+        <input id="r1" data-component="Radio" type="radio" value="comment" checked name="reviewEvent"><label for="r1">Comment</label>
+        <input id="r2" data-component="Radio" type="radio" value="approve" name="reviewEvent" ${approveDisabled ? 'disabled' : ''}>
+        <label for="r2"><span>Approve</span><span>Pull request authors can't approve their own pull requests.</span></label>
+        <input id="r3" data-component="Radio" type="radio" value="request changes" name="reviewEvent"><label for="r3">Request changes</label>
+      </fieldset>
+      <button data-component="Button" type="button">Submit review</button>
+    </div>`;
+  // Shape of the classic "Review changes" menu, whose form is always in the page.
+  const CLASSIC_REVIEW = `
+    <details id="review-changes-modal" class="js-reviews-container">
+      <summary class="btn btn-sm btn-primary">Review changes</summary>
+      <form id="pull_requests_submit_review" action="/o/r/pull/1/reviews" method="post">
+        <input type="radio" name="pull_request_review[event]" value="comment" checked>
+        <input type="radio" name="pull_request_review[event]" value="approve">
+        <input type="radio" name="pull_request_review[event]" value="reject">
+        <button type="submit">Submit review</button>
+      </form>
+    </details>`;
+
+  function reactPage(approveDisabled = false): void {
+    document.body.innerHTML = REACT_REVIEW_BUTTON;
+    document
+      .querySelector('button')!
+      .addEventListener('click', () => document.body.insertAdjacentHTML('beforeend', reactReviewBox(approveDisabled)));
+  }
+
+  it('opens the React review box with "Approve" selected, without submitting', async () => {
+    const onSubmit = vi.fn();
+    reactPage();
+    document.body.addEventListener('click', (event) => {
+      if ((event.target as Element).closest('[role="dialog"] button')) onSubmit();
+    });
+    await expect(openApproval()).resolves.toEqual({ opened: true, approveSelected: true });
+    expect(document.querySelector<HTMLInputElement>('input[value="approve"]')!.checked).toBe(true);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('leaves "Approve" alone when GitHub disables it, e.g. for the author', async () => {
+    reactPage(true);
+    await expect(openApproval()).resolves.toEqual({ opened: true, approveSelected: false });
+    expect(document.querySelector<HTMLInputElement>('input[value="comment"]')!.checked).toBe(true);
+  });
+
+  it('opens the classic review menu with "Approve" selected, without submitting', async () => {
+    document.body.innerHTML = CLASSIC_REVIEW;
+    const onSubmit = vi.fn((event: Event) => event.preventDefault());
+    document.querySelector('form')!.addEventListener('submit', onSubmit);
+    await expect(openApproval()).resolves.toEqual({ opened: true, approveSelected: true });
+    expect(document.querySelector('details')!.open).toBe(true);
+    expect(document.querySelector<HTMLInputElement>('input[value="approve"]')!.checked).toBe(true);
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it('reports pages without a review button, e.g. when signed out', async () => {
+    document.body.innerHTML = '<button type="button">Viewed</button>';
+    await expect(openApproval()).resolves.toEqual({ opened: false, approveSelected: false });
+  });
+
+  it('gives up when the review box does not open', async () => {
+    vi.useFakeTimers();
+    try {
+      document.body.innerHTML = REACT_REVIEW_BUTTON;
+      const result = openApproval();
+      await vi.advanceTimersByTimeAsync(2100);
+      await expect(result).resolves.toEqual({ opened: false, approveSelected: false });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

@@ -4,6 +4,7 @@ import type {
   GitHubLineInfo,
   GoToLineResponse,
   Message,
+  OpenApprovalResponse,
   PullRequestFile,
   PullRequestRef,
   ReviewRequest,
@@ -11,6 +12,7 @@ import type {
 import {
   extractPageRevisions,
   extractPullRequestFiles,
+  openApproval,
   readLineInfo,
   resolveTheme,
   revealFile,
@@ -109,6 +111,13 @@ function handleMessage(message: Message, _sender: chrome.runtime.MessageSender, 
     case 'diffsanity:revealFile':
       sendResponse(showsPullRequest(message.pullRequest) && revealFile(message.anchor));
       return false;
+    case 'diffsanity:openApproval':
+      if (!showsPullRequest(message.pullRequest)) {
+        sendResponse({ opened: false, approveSelected: false } satisfies OpenApprovalResponse);
+        return false;
+      }
+      openApproval().then(sendResponse);
+      return true;
     default:
       return false;
   }

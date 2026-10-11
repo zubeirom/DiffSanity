@@ -5,6 +5,7 @@
 import type { DiffLine, GitHubLineInfo, GoToLineResponse, Message, PullRequestRef, ReviewRequest } from '../shared/types';
 import type { Minimap } from './minimap';
 import type { RenderedDiff } from './renderer';
+import { focusReviewTab, sendToSourceTab } from './sourceTab';
 
 export interface CommentTargets {
   canComment: boolean;
@@ -152,22 +153,11 @@ export class GitHubComments {
     if (!lineKey) return;
     const { sourceTabId, anchor } = this.request;
     const message: Message = { type: 'diffsanity:goToLine', pullRequest: this.pullRequest, anchor, lineKey, startComment };
-    let response: GoToLineResponse | undefined;
-    try {
-      const source = await chrome.tabs.update(sourceTabId, { active: true });
-      if (source) await chrome.windows.update(source.windowId, { focused: true });
-      response = await chrome.tabs.sendMessage(sourceTabId, message);
-    } catch {
-      // Handled below.
-    }
+    const response = await sendToSourceTab<GoToLineResponse>(sourceTabId, message);
     if (response?.found) return;
 
     // Come back and explain instead of leaving the user on a GitHub page where nothing happened.
-    const current = await chrome.tabs.getCurrent();
-    if (current?.id !== undefined) {
-      await chrome.tabs.update(current.id, { active: true });
-      await chrome.windows.update(current.windowId, { focused: true });
-    }
+    await focusReviewTab();
     this.showMessage('Could not find this line on the GitHub tab. Reload the pull request there and try again.');
     void this.refresh();
   }

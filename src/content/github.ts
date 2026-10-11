@@ -7,7 +7,15 @@
  * - React ("new files changed experience"): `h3 > a[href^="#diff-"]` inside `DiffFileHeader-module__*`
  */
 import { extractRevisionsFromText, parseRenamedPath, toPullRequestFiles } from '../shared/githubContext';
-import type { FileStatus, GitHubLineInfo, GoToLineResponse, PullRequestFile, Revisions, Theme } from '../shared/types';
+import type {
+  FileStatus,
+  GitHubLineInfo,
+  GoToLineResponse,
+  OpenApprovalResponse,
+  PullRequestFile,
+  Revisions,
+  Theme,
+} from '../shared/types';
 
 export interface FileHeader {
   /** Root of the file header; used for idempotency checks. */
@@ -349,4 +357,42 @@ export async function revealLine(
   const button = await waitFor(() => row.querySelector<HTMLElement>(ADD_COMMENT_BUTTON), ADD_COMMENT_TIMEOUT_MS);
   button?.click();
   return { found: true, commentBoxOpened: !!button };
+}
+
+/*
+ * Reviews. GitHub's review box offers Comment / Approve / Request changes as radio buttons:
+ * - React: `input[name="reviewEvent"]`, rendered only once the "Submit review" button opens the box.
+ * - classic: `input[name="pull_request_review[event]"]` inside the "Review changes" `<details>` menu, always in the page.
+ */
+const APPROVE_RADIO = 'input[type="radio"][value="approve"]:is([name="reviewEvent"], [name="pull_request_review[event]"])';
+const REACT_REVIEW_BUTTON = 'button[class*="ReviewMenuButton-module__ReviewMenuButton"]';
+const REVIEW_BUTTON_TEXT = /^(submit review|review changes)/i;
+const REVIEW_BOX_TIMEOUT_MS = 2000;
+
+function findReviewButton(doc: Document): HTMLElement | undefined {
+  return (
+    doc.querySelector<HTMLElement>(REACT_REVIEW_BUTTON) ??
+    [...doc.querySelectorAll<HTMLElement>('button, summary')].find((element) =>
+      REVIEW_BUTTON_TEXT.test(visibleText(element.textContent)),
+    )
+  );
+}
+
+/**
+ * Opens GitHub's own review box with "Approve" selected. It never submits: the user reads it and presses
+ * GitHub's "Submit review". "Approve" stays unselected when GitHub disables it, e.g. for the pull request's author.
+ */
+export async function openApproval(doc: Document = document): Promise<OpenApprovalResponse> {
+  let radio = doc.querySelector<HTMLInputElement>(APPROVE_RADIO);
+  if (!radio) {
+    const button = findReviewButton(doc);
+    if (!button) return { opened: false, approveSelected: false };
+    button.click();
+    radio = await waitFor(() => doc.querySelector<HTMLInputElement>(APPROVE_RADIO), REVIEW_BOX_TIMEOUT_MS);
+    if (!radio) return { opened: false, approveSelected: false };
+  }
+  const menu = radio.closest('details');
+  if (menu) menu.open = true;
+  if (!radio.disabled && !radio.checked) radio.click();
+  return { opened: true, approveSelected: radio.checked };
 }
