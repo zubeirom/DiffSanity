@@ -12,6 +12,7 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
 - **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree with its status. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it, or hide it with the button at the top left.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
+- **A clear toolbar** shows the file's path, status, a +/− change bar, the PR and the commits being compared.
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
 - **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
 
@@ -42,7 +43,7 @@ Ctrl/⌘-click the button to open the review in a background tab.
 
 | Command | What it does |
 | --- | --- |
-| `npm run build` | Bundles `src/` with esbuild into `dist/` |
+| `npm run build` | Bundles `src/` with esbuild and compiles `styles/review.css` with Tailwind CSS into `dist/` |
 | `npm run watch` | Rebuilds on change; reload the extension in `chrome://extensions` |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 | `npm test` | Unit tests (Vitest + jsdom) |
@@ -87,6 +88,7 @@ flowchart LR
 | `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its scroll position, and keeps the URL and the GitHub tab in step with the open file. |
 | `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list (from the GitHub tab, or by fetching the PR page) and downloads both file versions. |
 | `src/review/fileTree.ts` | Builds the folder tree (folders first, single-child folders merged) and renders the file list with filtering and keyboard navigation. |
+| `src/review/diffstat.ts` | Works out the five-block +/− change bar shown in the toolbar. |
 | `src/review/sidebar.ts` | Shows, hides and resizes the file list, and remembers its width and visibility in `localStorage`. |
 | `src/review/diff.ts` | Line diff (jsdiff `diffArrays`, 3 s timeout) to a normalised `DiffLine[]` model. |
 | `src/review/syntax.ts` | Highlights whole files with Prism, so multi-line comments and strings are correct, then splits the output into per-line HTML. |

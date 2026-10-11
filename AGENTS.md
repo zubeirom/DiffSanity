@@ -23,7 +23,7 @@ These are product promises. Do not break them without the owner's explicit appro
 - `src/shared/` is pure and framework-free: URL parsing, validation, shared types. Message types live in `src/shared/types.ts` and are prefixed `diffsanity:`.
 - The review page works on the normalised `FileDiff` model (`src/shared/types.ts`), not on GitHub data. Renderer, minimap and comments stay separate modules.
 - Performance: no DOM node per line where avoidable (the minimap is one canvas); keep work debounced; large files (thousands of lines) must stay fast.
-- CSS: classes injected into GitHub pages use the `diffsanity-` prefix and Primer CSS variables with fallbacks (`styles/github.css`). Review page classes use `ds-` (`styles/review.css`). Themes are `:root[data-theme="…"]` CSS variable blocks; add a theme there and in `src/review/themes.ts`.
+- CSS: classes injected into GitHub pages use the `diffsanity-` prefix and Primer CSS variables with fallbacks (`styles/github.css`). The review page is styled with Tailwind CSS v4, compiled at build time from `styles/review.css`: use utilities in `review.html` for layout, and `ds-` component classes in `@layer components` for anything reused or set from TypeScript. Colours come from the theme variables (`bg-canvas`, `text-muted`, `border-line`, …), never fixed values. Themes are `:root[data-theme="…"]` CSS variable blocks; add a theme there and in `src/review/themes.ts`.
 
 ## Code style
 
@@ -33,7 +33,7 @@ These are product promises. Do not break them without the owner's explicit appro
 - Doc comments on exported types and functions. Inline comments only to explain *why*, never to restate code.
 - Handle failure quietly and safely: a GitHub DOM change should degrade to "no button" or a clear message in the review tab, never a broken GitHub page.
 - Validate anything that crosses a boundary (URL query params, runtime messages, fetched content).
-- Dependencies: keep them few. Runtime deps today are `diff` (jsdiff) and `prismjs` only.
+- Dependencies: keep them few. Runtime deps today are `diff` (jsdiff) and `prismjs` only. Tailwind is a build-time dev dependency; nothing from it runs in the extension except the compiled CSS.
 
 ## Testing
 

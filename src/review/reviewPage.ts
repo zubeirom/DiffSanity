@@ -2,6 +2,7 @@ import { fromReviewSearch, pullRequestFilesUrl, toReviewSearch } from '../shared
 import type { Message, PullRequestFile, ReviewRequest, Theme } from '../shared/types';
 import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
+import { diffstatBlocks } from './diffstat';
 import { FileTree } from './fileTree';
 import { listSourceTabFiles, loadFileContents, loadPullRequestFiles, LoadError, type FileContents } from './fileSource';
 import { Minimap } from './minimap';
@@ -17,6 +18,8 @@ const GITHUB_RENDER_DELAY_MS = 1500;
 /** GitHub only says where a file was renamed from once it rendered it, so the GitHub tab is asked a few times. */
 const RENAME_LOOKUP_ATTEMPTS = 5;
 const RENAME_LOOKUP_DELAY_MS = 400;
+/** Widths (% of the code area) of the placeholder lines shown while a file loads. */
+const SKELETON_LINE_WIDTHS = [32, 54, 46, 0, 28, 61, 70, 38, 0, 44, 57, 24];
 
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
@@ -89,15 +92,25 @@ function renderFileHeader(file: PullRequestFile): void {
   element('#ds-status').hidden = true;
   element('#ds-additions').textContent = '';
   element('#ds-deletions').textContent = '';
+  element('#ds-diffstat').replaceChildren();
   document.title = `${name} · DiffSanity`;
 }
 
 function renderStats(additions: number, deletions: number, contents: FileContents): void {
   element('#ds-additions').textContent = `+${additions}`;
   element('#ds-deletions').textContent = `−${deletions}`;
+  element('#ds-diffstat').replaceChildren(
+    ...diffstatBlocks(additions, deletions).map((kind) => {
+      const block = document.createElement('span');
+      block.className = 'ds-diffstat-block';
+      block.dataset.kind = kind;
+      return block;
+    }),
+  );
   const badge = element('#ds-status');
   badge.hidden = contents.status !== 'added' && contents.status !== 'deleted';
   badge.textContent = badge.hidden ? '' : contents.status;
+  badge.dataset.status = contents.status;
   const { baseSha, headSha } = contents.revisions;
   element('#ds-revisions').textContent = `${baseSha.slice(0, 7)} → ${headSha.slice(0, 7)}`;
   element('#ds-revisions').title = `Base ${baseSha}\nHead ${headSha}`;
@@ -112,6 +125,19 @@ function showMessage(text: string, kind: 'loading' | 'error' | 'info'): void {
 
 function hideMessage(): void {
   element('#ds-message').hidden = true;
+}
+
+/** Placeholder lines shown in the code area while a file loads. */
+function loadingSkeleton(): HTMLElement {
+  const skeleton = document.createElement('div');
+  skeleton.className = 'ds-skeleton';
+  skeleton.setAttribute('aria-hidden', 'true');
+  for (const width of SKELETON_LINE_WIDTHS) {
+    const line = document.createElement('span');
+    line.style.width = `${width}%`;
+    skeleton.append(line);
+  }
+  return skeleton;
 }
 
 function fileOf(request: ReviewRequest): PullRequestFile {
@@ -153,7 +179,9 @@ class ReviewPage {
       void backToGitHub(this.request(this.file));
     });
     const pr = element<HTMLAnchorElement>('#ds-pr');
-    pr.textContent = `${session.owner}/${session.repo} #${session.pr}`;
+    element('#ds-pr-repo').textContent = `${session.owner}/${session.repo}`;
+    element('#ds-pr-number').textContent = `#${session.pr}`;
+    pr.title = `Pull request ${session.owner}/${session.repo} #${session.pr} on GitHub`;
     pr.href = pullRequestFilesUrl({ ...session, anchor: undefined });
     document.addEventListener('keydown', this.onKeyDown);
   }
@@ -194,6 +222,7 @@ class ReviewPage {
     const revealed = this.revealOnGitHub(file);
 
     showMessage('Loading file…', 'loading');
+    this.scroller.replaceChildren(loadingSkeleton());
     try {
       const resolved = await this.withOldPath(file, () => token !== this.loadToken);
       const contents = await this.load(this.request(resolved));
@@ -203,6 +232,7 @@ class ReviewPage {
       if (token !== this.loadToken) return;
       const text = error instanceof LoadError ? error.message : 'Something went wrong while loading this file.';
       if (!(error instanceof LoadError)) console.error('[DiffSanity]', error);
+      this.scroller.replaceChildren();
       showMessage(text, 'error');
     }
   }

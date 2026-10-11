@@ -5,7 +5,7 @@ import { clampSidebarWidth } from '../src/review/sidebar';
 import type { PullRequestFile } from '../src/shared/types';
 
 const FILES: PullRequestFile[] = [
-  { path: 'README.md', status: 'modified' },
+  { path: 'README.md', status: 'modified', additions: 3, deletions: 1 },
   { path: 'src/vs/editor/b.ts', status: 'added' },
   { path: 'src/vs/editor/a10.ts', status: 'modified' },
   { path: 'src/vs/editor/a9.ts', status: 'deleted' },
@@ -74,7 +74,12 @@ describe('FileTree', () => {
     expect(host.querySelectorAll('.ds-tree-file')).toHaveLength(FILES.length);
     expect(row('src/vs/base/util.ts').querySelector('.ds-tree-status')!.textContent).toBe('R');
     expect(row('test/Z.ts').querySelector('.ds-tree-status')!.textContent).toBe('');
-    expect(host.querySelector('.ds-files-count')!.textContent).toBe('6 files');
+    expect(host.querySelector('.ds-files-count')!.textContent).toBe('6');
+  });
+
+  it('shows changed line counts when they are known', () => {
+    expect(row('README.md').querySelector('.ds-tree-delta')!.textContent).toBe('+3−1');
+    expect(row('test/Z.ts').querySelector('.ds-tree-delta')).toBeNull();
   });
 
   it('opens a file when its row is clicked', () => {
@@ -111,8 +116,15 @@ describe('FileTree', () => {
         'src/vs/editor/a10.ts',
         'src/vs/editor/b.ts',
       ]);
-      expect(host.querySelector('.ds-files-count')!.textContent).toBe('3 of 6 files');
+      expect(host.querySelector('.ds-files-count')!.textContent).toBe('3 of 6');
       expect(tree.neighbour('src/vs/editor/b.ts', 1)).toBeUndefined();
+      expect(host.querySelector<HTMLElement>('.ds-files-empty')!.hidden).toBe(true);
+
+      input.value = 'nothing-matches';
+      input.dispatchEvent(new Event('input'));
+      await vi.advanceTimersByTimeAsync(150);
+      expect(host.querySelector<HTMLElement>('.ds-files-empty')!.hidden).toBe(false);
+      expect(host.querySelector<HTMLElement>('.ds-tree')!.hidden).toBe(true);
     } finally {
       vi.useRealTimers();
     }

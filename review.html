@@ -9,27 +9,55 @@
     <script src="review.js" defer></script>
   </head>
   <body>
-    <header class="ds-header">
-      <button id="ds-sidebar-toggle" class="ds-icon-button" type="button" aria-controls="ds-sidebar" aria-label="Changed files" hidden>
-        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
-          <path d="M3.75 1.5h8.5c1.24 0 2.25 1.01 2.25 2.25v8.5c0 1.24-1.01 2.25-2.25 2.25h-8.5A2.25 2.25 0 0 1 1.5 12.25v-8.5C1.5 2.51 2.51 1.5 3.75 1.5ZM3 3.75v8.5c0 .41.34.75.75.75H6V3H3.75a.75.75 0 0 0-.75.75ZM7.5 13h4.75c.41 0 .75-.34.75-.75v-8.5a.75.75 0 0 0-.75-.75H7.5Z" />
-        </svg>
-      </button>
-      <a id="ds-back" class="ds-back" title="Back to the pull request on GitHub">← Back to GitHub</a>
-      <div class="ds-file" aria-label="File under review">
-        <span id="ds-dir" class="ds-dir"></span><strong id="ds-name" class="ds-name"></strong>
-        <span id="ds-renamed" class="ds-renamed" hidden></span>
-        <span id="ds-status" class="ds-badge" hidden></span>
+    <header class="ds-header flex h-12 flex-none items-center gap-3 border-b border-line bg-subtle px-2 whitespace-nowrap">
+      <div class="flex flex-none items-center gap-1">
+        <button id="ds-sidebar-toggle" class="ds-icon-button" type="button" aria-controls="ds-sidebar" aria-label="Changed files" hidden>
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <path d="M3.75 1.5h8.5c1.24 0 2.25 1.01 2.25 2.25v8.5c0 1.24-1.01 2.25-2.25 2.25h-8.5A2.25 2.25 0 0 1 1.5 12.25v-8.5C1.5 2.51 2.51 1.5 3.75 1.5ZM3 3.75v8.5c0 .41.34.75.75.75H6V3H3.75a.75.75 0 0 0-.75.75ZM7.5 13h4.75c.41 0 .75-.34.75-.75v-8.5a.75.75 0 0 0-.75-.75H7.5Z" />
+          </svg>
+        </button>
+        <a id="ds-back" class="ds-button" title="Back to the pull request on GitHub">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <path d="M7.78 12.53a.75.75 0 0 1-1.06 0L2.47 8.28a.75.75 0 0 1 0-1.06l4.25-4.25a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L4.81 7h7.44a.75.75 0 0 1 0 1.5H4.81l2.97 2.97a.75.75 0 0 1 0 1.06Z" />
+          </svg>
+          Back to GitHub
+        </a>
       </div>
-      <div class="ds-stats">
-        <span id="ds-additions" class="ds-additions"></span>
-        <span id="ds-deletions" class="ds-deletions"></span>
+      <span class="h-5 w-px flex-none bg-line" aria-hidden="true"></span>
+      <div class="ds-file flex min-w-0 items-center gap-2" aria-label="File under review">
+        <span class="min-w-0 truncate font-mono text-[13px]"><span id="ds-dir" class="text-muted"></span><strong id="ds-name" class="font-semibold"></strong></span>
+        <span id="ds-status" class="ds-pill" hidden></span>
+        <span id="ds-renamed" class="min-w-0 truncate text-xs text-muted" hidden></span>
       </div>
-      <div class="ds-meta">
-        <a id="ds-pr" class="ds-pr"></a>
-        <span id="ds-revisions" class="ds-revisions"></span>
-        <select id="ds-theme" class="ds-theme" aria-label="Colour theme" title="Colour theme"></select>
-        <span class="ds-brand" title="DiffSanity — bring sanity back to GitHub diffs">DiffSanity</span>
+      <div class="ds-stats flex flex-none items-center gap-2 font-mono text-xs font-semibold tabular-nums">
+        <span id="ds-additions" class="text-add"></span>
+        <span id="ds-deletions" class="text-del"></span>
+        <span id="ds-diffstat" class="flex gap-0.5 max-md:hidden" aria-hidden="true"></span>
+      </div>
+      <div class="ml-auto flex flex-none items-center gap-1 text-xs">
+        <a id="ds-pr" class="ds-chip max-sm:hidden">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
+          </svg>
+          <span id="ds-pr-repo"></span><span id="ds-pr-number" class="font-semibold text-fg"></span>
+        </a>
+        <span class="ds-chip font-mono max-lg:hidden has-[#ds-revisions:empty]:hidden">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+            <path d="M11.93 8.5a4.002 4.002 0 0 1-7.86 0H.75a.75.75 0 0 1 0-1.5h3.32a4.002 4.002 0 0 1 7.86 0h3.32a.75.75 0 0 1 0 1.5Zm-1.43-.75a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z" />
+          </svg>
+          <span id="ds-revisions"></span>
+        </span>
+        <span class="ds-select ml-1">
+          <select id="ds-theme" aria-label="Colour theme" title="Colour theme"></select>
+          <svg viewBox="0 0 12 12" width="12" height="12" fill="currentColor" aria-hidden="true">
+            <path d="M6 8.825c-.2 0-.4-.1-.5-.2l-3.3-3.3c-.3-.3-.3-.8 0-1.1.3-.3.8-.3 1.1 0l2.7 2.7 2.7-2.7c.3-.3.8-.3 1.1 0 .3.3.3.8 0 1.1l-3.2 3.2c-.2.2-.4.3-.6.3Z" />
+          </svg>
+        </span>
+        <span class="mx-2 h-5 w-px flex-none bg-line" aria-hidden="true"></span>
+        <span class="ds-brand flex flex-none items-center gap-2 pr-1 text-[13px] font-semibold" title="DiffSanity — bring sanity back to GitHub diffs">
+          <img src="icons/icon-32.png" width="18" height="18" alt="" />
+          <span class="max-md:hidden">DiffSanity</span>
+        </span>
       </div>
     </header>
     <div id="ds-message" class="ds-message" role="status" hidden></div>

@@ -81,6 +81,26 @@ function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: strin
   return created;
 }
 
+const SEARCH_ICON =
+  'M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z';
+const FOLDER_ICON =
+  'M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z';
+
+/** A 16-unit Octicon-style icon. */
+function icon(path: string, size: number): SVGSVGElement {
+  const namespace = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(namespace, 'svg');
+  svg.setAttribute('viewBox', '0 0 16 16');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.setAttribute('fill', 'currentColor');
+  svg.setAttribute('aria-hidden', 'true');
+  const shape = document.createElementNS(namespace, 'path');
+  shape.setAttribute('d', path);
+  svg.append(shape);
+  return svg;
+}
+
 function describeFile(file: PullRequestFile): string {
   const lines = [file.oldPath ? `${file.oldPath} → ${file.path}` : file.path];
   if (file.additions !== undefined && file.deletions !== undefined) lines.push(`+${file.additions} −${file.deletions}`);
@@ -95,6 +115,7 @@ export class FileTree {
   private readonly filterInput = element('input', 'ds-files-filter');
   private readonly count = element('span', 'ds-files-count');
   private readonly tree = element('ul', 'ds-tree');
+  private readonly empty = element('p', 'ds-files-empty', 'No files match this filter.');
   private readonly byPath: Map<string, PullRequestFile>;
   private readonly collapsed = new Set<string>();
   private shown: PullRequestFile[] = [];
@@ -117,9 +138,13 @@ export class FileTree {
     this.tree.addEventListener('click', this.onClick);
     this.tree.addEventListener('keydown', this.onKeyDown);
 
+    const title = element('h2', 'ds-files-title', 'Files changed');
+    title.append(this.count);
+    const search = element('div', 'ds-files-search');
+    search.append(icon(SEARCH_ICON, 14), this.filterInput);
     const head = element('div', 'ds-files-head');
-    head.append(this.filterInput, this.count);
-    host.replaceChildren(head, this.tree);
+    head.append(title, search);
+    host.replaceChildren(head, this.tree, this.empty);
     this.render();
   }
 
@@ -150,8 +175,11 @@ export class FileTree {
     const nodes = buildFileTree(this.files.filter((file) => matchesFilter(file, filter)));
     this.shown = treeOrder(nodes);
     this.tree.replaceChildren(...nodes.map((node) => this.renderNode(node, 1, !!filter.trim())));
-    const total = `${this.files.length} file${this.files.length === 1 ? '' : 's'}`;
-    this.count.textContent = this.shown.length === this.files.length ? total : `${this.shown.length} of ${total}`;
+    const total = this.files.length;
+    this.count.textContent = this.shown.length === total ? String(total) : `${this.shown.length} of ${total}`;
+    this.count.title = `${this.shown.length} of ${total} file${total === 1 ? '' : 's'} shown`;
+    this.empty.hidden = this.shown.length > 0;
+    this.tree.hidden = !this.empty.hidden;
     for (const row of this.tree.querySelectorAll<HTMLElement>('.ds-tree-file')) {
       row.setAttribute('aria-selected', String(row.dataset.path === this.activePath));
     }
@@ -180,6 +208,13 @@ export class FileTree {
         status.title = file.status;
       }
       row.append(status, element('span', 'ds-tree-name', node.name));
+      if (file.additions !== undefined && file.deletions !== undefined) {
+        const delta = element('span', 'ds-tree-delta');
+        delta.setAttribute('aria-hidden', 'true');
+        if (file.additions) delta.append(element('span', 'ds-tree-delta-add', `+${file.additions}`));
+        if (file.deletions) delta.append(element('span', 'ds-tree-delta-del', `−${file.deletions}`));
+        row.append(delta);
+      }
       return item;
     }
 
@@ -189,7 +224,7 @@ export class FileTree {
     row.dataset.folder = node.path;
     row.title = node.path;
     row.setAttribute('aria-expanded', String(open));
-    row.append(element('span', 'ds-tree-chevron'), element('span', 'ds-tree-name', node.name));
+    row.append(element('span', 'ds-tree-chevron'), icon(FOLDER_ICON, 14), element('span', 'ds-tree-name', node.name));
     const group = element('ul', 'ds-tree-group');
     group.setAttribute('role', 'group');
     group.hidden = !open;
