@@ -1,5 +1,6 @@
 import type { PullRequestFile } from '../shared/types';
-import { STATUS_LABELS, STATUS_LETTERS } from './fileStatus';
+import { STATUS_LABELS, statusIcon } from './fileStatus';
+import { octicon } from './icons';
 
 /** A node of the changed-files tree. */
 export type FileTreeNode =
@@ -86,21 +87,6 @@ const SEARCH_ICON =
 const FOLDER_ICON =
   'M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z';
 
-/** A 16-unit Octicon-style icon. */
-function icon(path: string, size: number): SVGSVGElement {
-  const namespace = 'http://www.w3.org/2000/svg';
-  const svg = document.createElementNS(namespace, 'svg');
-  svg.setAttribute('viewBox', '0 0 16 16');
-  svg.setAttribute('width', String(size));
-  svg.setAttribute('height', String(size));
-  svg.setAttribute('fill', 'currentColor');
-  svg.setAttribute('aria-hidden', 'true');
-  const shape = document.createElementNS(namespace, 'path');
-  shape.setAttribute('d', path);
-  svg.append(shape);
-  return svg;
-}
-
 function describeFile(file: PullRequestFile): string {
   const lines = [file.oldPath ? `${file.oldPath} → ${file.path}` : file.path];
   if (file.status) lines.push(STATUS_LABELS[file.status]);
@@ -142,7 +128,7 @@ export class FileTree {
     const title = element('h2', 'ds-files-title', 'Files changed');
     title.append(this.count);
     const search = element('div', 'ds-files-search');
-    search.append(icon(SEARCH_ICON, 14), this.filterInput);
+    search.append(octicon(SEARCH_ICON, 14), this.filterInput);
     const head = element('div', 'ds-files-head');
     head.append(title, search);
     host.replaceChildren(head, this.tree, this.empty);
@@ -203,10 +189,13 @@ export class FileTree {
       row.classList.add('ds-tree-file');
       row.dataset.path = file.path;
       row.title = describeFile(file);
-      const status = element('span', 'ds-tree-status', file.status ? STATUS_LETTERS[file.status] : '');
+      const status = element('span', 'ds-tree-status');
       if (file.status) {
         status.dataset.status = file.status;
         status.title = STATUS_LABELS[file.status];
+        status.setAttribute('role', 'img');
+        status.setAttribute('aria-label', STATUS_LABELS[file.status]);
+        status.append(statusIcon(file.status, 14));
       }
       row.append(status, element('span', 'ds-tree-name', node.name));
       if (file.additions !== undefined && file.deletions !== undefined) {
@@ -225,7 +214,7 @@ export class FileTree {
     row.dataset.folder = node.path;
     row.title = node.path;
     row.setAttribute('aria-expanded', String(open));
-    row.append(element('span', 'ds-tree-chevron'), icon(FOLDER_ICON, 14), element('span', 'ds-tree-name', node.name));
+    row.append(element('span', 'ds-tree-chevron'), octicon(FOLDER_ICON, 14), element('span', 'ds-tree-name', node.name));
     const group = element('ul', 'ds-tree-group');
     group.setAttribute('role', 'group');
     group.hidden = !open;

@@ -70,12 +70,14 @@ describe('FileTree', () => {
     tree = new FileTree(host, FILES, onSelect);
   });
 
-  it('shows every file with its status and the file count', () => {
+  it('shows every file with its status icon and the file count', () => {
     expect(host.querySelectorAll('.ds-tree-file')).toHaveLength(FILES.length);
-    expect(row('src/vs/base/util.ts').querySelector('.ds-tree-status')!.textContent).toBe('R');
-    expect(row('src/vs/base/util.ts').querySelector<HTMLElement>('.ds-tree-status')!.title).toBe('Renamed');
+    const renamed = row('src/vs/base/util.ts').querySelector<HTMLElement>('.ds-tree-status')!;
+    expect(renamed.dataset.status).toBe('renamed');
+    expect(renamed.getAttribute('aria-label')).toBe('Renamed');
+    expect(renamed.querySelector('svg')).not.toBeNull();
     expect(row('src/vs/base/util.ts').title).toContain('Renamed');
-    expect(row('test/Z.ts').querySelector('.ds-tree-status')!.textContent).toBe('');
+    expect(row('test/Z.ts').querySelector('.ds-tree-status svg')).toBeNull();
     expect(host.querySelector('.ds-files-count')!.textContent).toBe('6');
   });
 

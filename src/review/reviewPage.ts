@@ -3,7 +3,7 @@ import type { FileStatus, Message, OpenApprovalResponse, PullRequestFile, Review
 import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { diffstatBlocks } from './diffstat';
-import { STATUS_LABELS } from './fileStatus';
+import { STATUS_LABELS, statusIcon } from './fileStatus';
 import { FileTree } from './fileTree';
 import { listSourceTabFiles, loadFileContents, loadPullRequestFiles, LoadError, type FileContents } from './fileSource';
 import { Minimap } from './minimap';
@@ -102,7 +102,7 @@ function renderFileHeader(file: PullRequestFile): void {
 function renderStatus(status: FileStatus | undefined): void {
   const pill = element('#ds-status');
   pill.hidden = !status;
-  pill.textContent = status ? STATUS_LABELS[status] : '';
+  pill.replaceChildren(...(status ? [statusIcon(status, 12), STATUS_LABELS[status]] : []));
   if (status) pill.dataset.status = status;
   else delete pill.dataset.status;
 }

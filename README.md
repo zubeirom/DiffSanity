@@ -10,7 +10,7 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - **Old and new line numbers** are shown side by side in the gutter.
 - **Syntax highlighting** follows GitHub's colours.
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
-- **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree with its status. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it, or hide it with the button at the top left.
+- **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree, with an icon that marks it as new, modified, deleted or renamed. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it, or hide it with the button at the top left.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
 - **A clear toolbar** shows the file's path, whether it is a **New file**, **Modified**, **Deleted** or **Renamed**, a +/− change bar, the PR and the commits being compared.
 - **Approve from the review tab.** The **Approve** button in the toolbar switches to the PR tab and opens GitHub's own review box with *Approve* already selected. You can add a note, then press GitHub's **Submit review**. DiffSanity never submits it for you.
@@ -89,7 +89,8 @@ flowchart LR
 | `src/shared/githubContext.ts` | Pure helpers: URL parsing, commit extraction, rename parsing, raw URLs, review-request (de)serialisation and validation, and the allowed-origin list. |
 | `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its scroll position, and keeps the URL and the GitHub tab in step with the open file. |
 | `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list (from the GitHub tab, or by fetching the PR page) and downloads both file versions. |
-| `src/review/fileStatus.ts` | Plain-word labels and one-letter codes for a file's status (new, modified, deleted, renamed). |
+| `src/review/fileStatus.ts` | Plain-word labels and Octicon icons for a file's status (new, modified, deleted, renamed). |
+| `src/review/icons.ts` | Draws an inline Octicon SVG (no icon fonts or remote assets). |
 | `src/review/fileTree.ts` | Builds the folder tree (folders first, single-child folders merged) and renders the file list with filtering and keyboard navigation. |
 | `src/review/diffstat.ts` | Works out the five-block +/− change bar shown in the toolbar. |
 | `src/review/sidebar.ts` | Shows, hides and resizes the file list, and remembers its width and visibility in `localStorage`. |

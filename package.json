@@ -1,6 +1,6 @@
 {
   "name": "diffsanity",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "private": true,
   "description": "Bring sanity back to GitHub diffs.",
   "license": "MIT",
