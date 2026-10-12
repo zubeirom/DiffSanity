@@ -122,10 +122,11 @@ export class GitHubComments {
 
   private readonly onMouseOver = (event: MouseEvent) => {
     if (!this.targets.canComment) return;
-    const index = this.rendered.lineAt(event.clientY);
+    const hit = this.rendered.lineAt(event.clientX, event.clientY);
+    const index = hit?.index ?? -1;
     const key = this.targets.keys.get(index);
     // Lines with threads already have a marker that leads to the conversation.
-    const gutter = key && !this.targets.threads.has(index) ? this.rendered.row(index)?.querySelector('.ds-gutter') : null;
+    const gutter = key && !this.targets.threads.has(index) ? hit?.row.querySelector('.ds-gutter') : null;
     if (!gutter) {
       this.addButton.remove();
       return;

@@ -1,4 +1,8 @@
 import type { DiffLine } from '../shared/types';
+import type { RenderedDiff } from './renderer';
+
+/** Where the diff's lines sit in the code area. */
+export type MinimapRows = Pick<RenderedDiff, 'layout' | 'rowCount' | 'rowOfLine'>;
 
 /** Largest minimap height per line, so short files are not stretched into giant blocks. */
 const MAX_SCALE = 3;
@@ -57,6 +61,21 @@ function readPalette(element: HTMLElement): Palette {
 }
 
 /**
+ * Horizontal spans `[x, width]` a line is drawn in. In the split view old lines use the left half,
+ * new lines the right half, and unchanged lines both.
+ */
+export function minimapSpans(type: DiffLine['type'], split: boolean, codeWidth: number): Array<[number, number]> {
+  if (!split) return [[0, codeWidth]];
+  const half = codeWidth / 2;
+  if (type === 'deletion') return [[0, half]];
+  if (type === 'addition') return [[half, half]];
+  return [
+    [0, half],
+    [half, half],
+  ];
+}
+
+/**
  * Canvas minimap of the whole file. The canvas is only redrawn on resize/theme changes;
  * scrolling just moves the viewport indicator element.
  */
@@ -74,6 +93,7 @@ export class Minimap {
     private readonly scroller: HTMLElement,
     private readonly lines: readonly DiffLine[],
     private readonly lineHeight: number,
+    private readonly rows: MinimapRows,
   ) {
     this.viewport.className = 'ds-minimap-viewport';
     host.replaceChildren(this.canvas, this.viewport);
@@ -91,7 +111,7 @@ export class Minimap {
     const width = this.host.clientWidth;
     const height = this.host.clientHeight;
     const ratio = window.devicePixelRatio || 1;
-    this.scale = minimapScale(this.lines.length, height);
+    this.scale = minimapScale(this.rows.rowCount, height);
     this.canvas.width = Math.round(width * ratio);
     this.canvas.height = Math.round(height * ratio);
     this.canvas.style.width = `${width}px`;
@@ -108,7 +128,9 @@ export class Minimap {
   private paint(context: CanvasRenderingContext2D, width: number, height: number): void {
     const palette = readPalette(this.host);
     const scale = this.scale;
-    const codeWidth = width - RULER_WIDTH - 6;
+    const split = this.rows.layout === 'split';
+    const top = (index: number) => this.rows.rowOfLine[index] * scale;
+    const spans = (line: DiffLine) => minimapSpans(line.type, split, width - RULER_WIDTH);
     const rowHeight = Math.max(scale * 0.8, Math.min(scale, 1));
     context.clearRect(0, 0, width, height);
 
@@ -116,29 +138,35 @@ export class Minimap {
     this.lines.forEach((line, index) => {
       if (line.type === 'context') return;
       context.fillStyle = line.type === 'addition' ? palette.additionBackground : palette.deletionBackground;
-      context.fillRect(0, index * scale, width - RULER_WIDTH, Math.max(scale, 1));
+      for (const [x, spanWidth] of spans(line)) context.fillRect(x, top(index), spanWidth, Math.max(scale, 1));
     });
 
-    const charWidth = Math.max(codeWidth / 120, 0.5);
     this.lines.forEach((line, index) => {
       const indent = line.content.length - line.content.trimStart().length;
       const length = line.content.trim().length;
       if (!length) return;
       context.fillStyle =
         line.type === 'addition' ? palette.addition : line.type === 'deletion' ? palette.deletion : palette.text;
-      const x = 2 + Math.min(indent, 60) * charWidth;
-      context.fillRect(x, index * scale, Math.min(length * charWidth, codeWidth - x), rowHeight);
+      for (const [spanX, spanWidth] of spans(line)) {
+        const codeWidth = spanWidth - 6;
+        const charWidth = Math.max(codeWidth / 120, 0.5);
+        const x = spanX + 2 + Math.min(indent, 60) * charWidth;
+        context.fillRect(x, top(index), Math.min(length * charWidth, spanX + codeWidth - x), rowHeight);
+      }
     });
 
+    // In the split view a row can hold both a deletion and an addition, so each gets half of the ruler.
+    const rulerWidth = split ? RULER_WIDTH / 2 : RULER_WIDTH;
     this.lines.forEach((line, index) => {
       if (line.type === 'context') return;
       context.fillStyle = line.type === 'addition' ? palette.addition : palette.deletion;
-      context.fillRect(width - RULER_WIDTH, index * scale, RULER_WIDTH, Math.max(scale, MIN_RULER_MARK));
+      const x = width - (split && line.type === 'addition' ? rulerWidth : RULER_WIDTH);
+      context.fillRect(x, top(index), rulerWidth, Math.max(scale, MIN_RULER_MARK));
     });
 
     context.fillStyle = palette.comment;
     for (const index of this.threadLines) {
-      context.fillRect(0, index * scale, COMMENT_MARK_WIDTH, Math.max(scale, COMMENT_MARK_WIDTH));
+      context.fillRect(0, top(index), COMMENT_MARK_WIDTH, Math.max(scale, COMMENT_MARK_WIDTH));
     }
   }
 
@@ -162,7 +190,7 @@ export class Minimap {
       this.scroller.clientHeight,
       this.lineHeight,
       this.scale,
-      this.lines.length,
+      this.rows.rowCount,
     );
     this.viewport.style.transform = `translateY(${top}px)`;
     this.viewport.style.height = `${height}px`;
@@ -176,7 +204,7 @@ export class Minimap {
     if (event.button !== 0) return;
     event.preventDefault();
     const y = this.pointerY(event);
-    const { top, height } = viewportRect(this.scroller.scrollTop, this.scroller.clientHeight, this.lineHeight, this.scale, this.lines.length);
+    const { top, height } = viewportRect(this.scroller.scrollTop, this.scroller.clientHeight, this.lineHeight, this.scale, this.rows.rowCount);
     // Grabbing the indicator keeps the grab point; clicking elsewhere centres the viewport there.
     this.dragOffset = y >= top && y <= top + height ? y - top : height / 2;
     this.host.setPointerCapture(event.pointerId);

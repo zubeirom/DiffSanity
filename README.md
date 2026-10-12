@@ -8,22 +8,23 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 
 - The **whole file** is shown, not just the diff hunks, as a unified diff with changes highlighted.
 - **Old and new line numbers** are shown side by side in the gutter.
+- **One column or side by side.** Use the two layout buttons at the top right to show the old file on the left and the new file on the right. Changed lines line up, and both sides scroll sideways together. Your choice is remembered; one column is the default.
 - **Syntax highlighting** follows GitHub's colours.
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
 - **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree, with an icon that marks it as new, modified, deleted or renamed. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it (double-click the edge to reset), or hide it with the button at the top left.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
-- **A clear toolbar** shows the file's path, whether it is a **New file**, **Modified**, **Deleted** or **Renamed**, a +/− change bar, the PR and the commits being compared.
+- **A clear toolbar** shows the file's path, whether it is a **New file**, **Modified**, **Deleted** or **Renamed**, a +/− change bar and the PR. Hover the PR to see the commits being compared. Layout, theme and **Approve** sit together on the right.
 - **Approve from the review tab.** The **Approve** button in the toolbar switches to the PR tab and opens GitHub's own review box with *Approve* already selected. You can add a note, then press GitHub's **Submit review**. DiffSanity never submits it for you.
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
-- **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
+- **Colour themes.** Pick one from the brush menu at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
 
 It works on **github.com** and on **GitHub Enterprise Cloud with data residency** (`<enterprise>.ghe.com`).
 
 Everything runs in your browser. There is no backend, no OAuth and no tokens.
 
-| GitHub file header | Review page (light) | Review page (dark) | Azure DevOps Dark |
-| --- | --- | --- | --- |
-| ![Button](docs/screenshots/github-button.png) | ![Light](docs/screenshots/review-light.png) | ![Dark](docs/screenshots/review-dark.png) | ![Azure DevOps Dark](docs/screenshots/review-ado-dark.png) |
+| GitHub file header | Review page (light) | Side by side | Review page (dark) | Azure DevOps Dark |
+| --- | --- | --- | --- | --- |
+| ![Button](docs/screenshots/github-button.png) | ![Light](docs/screenshots/review-light.png) | ![Side by side](docs/screenshots/review-split.png) | ![Dark](docs/screenshots/review-dark.png) | ![Azure DevOps Dark](docs/screenshots/review-ado-dark.png) |
 
 ## Install (unpacked)
 
@@ -69,7 +70,7 @@ flowchart LR
     R[review/reviewPage.ts] --> F[fileSource.ts<br/>commits + raw files]
     R --> D[diff.ts<br/>jsdiff]
     R --> S[syntax.ts<br/>Prism]
-    R --> X[renderer.ts]
+    R --> X[renderer.ts + layout.ts<br/>one column or side by side]
     R --> M[minimap.ts<br/>canvas]
     R --> K[comments.ts<br/>+ button, thread markers]
     R --> A[sourceTab.ts<br/>hand-offs to the PR tab]
@@ -87,7 +88,7 @@ flowchart LR
 | `src/content/index.ts` | Watches the DOM (`MutationObserver`, throttled to 150 ms) plus `turbo:load`/`popstate`, so buttons survive client-side navigation, lazy-loaded files and re-renders. Acts only on `/pull/N/files` (and `/changes`). |
 | `src/background/index.ts` | Opens `review.html?<request>` next to the source tab. |
 | `src/shared/githubContext.ts` | Pure helpers: URL parsing, commit extraction, rename parsing, raw URLs, review-request (de)serialisation and validation, and the allowed-origin list. |
-| `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its scroll position, and keeps the URL and the GitHub tab in step with the open file. |
+| `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its reading position (kept when the layout changes), switches the layout, and keeps the URL and the GitHub tab in step with the open file. |
 | `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list (from the GitHub tab, or by fetching the PR page) and downloads both file versions. |
 | `src/review/fileStatus.ts` | Plain-word labels and Octicon icons for a file's status (new, modified, deleted, renamed). |
 | `src/review/icons.ts` | Draws an inline Octicon SVG (no icon fonts or remote assets). |
@@ -96,7 +97,8 @@ flowchart LR
 | `src/review/sidebar.ts` | Shows, hides and resizes the file list, and remembers its width and visibility in `localStorage`. |
 | `src/review/diff.ts` | Line diff (jsdiff `diffArrays`, 3 s timeout) to a normalised `DiffLine[]` model. |
 | `src/review/syntax.ts` | Highlights whole files with Prism, so multi-line comments and strings are correct, then splits the output into per-line HTML. |
-| `src/review/renderer.ts` | Renders rows at a fixed 20 px height in 200-line `content-visibility: auto` chunks. This keeps large files fast while Ctrl+F still finds everything. |
+| `src/review/renderer.ts` | Renders rows at a fixed 20 px height in 200-line `content-visibility: auto` chunks. This keeps large files fast while Ctrl+F still finds everything. Side by side, it draws two panes that scroll sideways together with one bar pinned to the bottom. |
+| `src/review/layout.ts` | Pairs diff lines into side-by-side rows (deleted lines next to the lines that replace them) and remembers the layout in `localStorage` (`diffsanity.layout`). |
 | `src/review/minimap.ts` | Canvas minimap with change bands, a code-shape outline, a change ruler and review-thread marks. The canvas is only redrawn on resize, theme or thread changes; scrolling just moves the viewport element. |
 | `src/review/themes.ts` | The theme list, and how the saved choice resolves to a theme (`auto` follows GitHub's mode). Choices are stored in `localStorage` (`diffsanity.theme`), so they apply before first paint and sync to open tabs. The colours themselves are `:root[data-theme="…"]` CSS variables in `styles/review.css`. |
 | `src/review/comments.ts` | Maps GitHub's line keys (`R12` = new line 12, `L7` = old line 7) onto the full-file diff. Shows **+** on lines GitHub lets you comment on, and markers for existing threads. Clicking either switches to the PR tab and asks the content script to scroll there and open the comment box. It re-reads the PR tab whenever the review tab becomes visible again. DiffSanity never posts anything itself. |
@@ -135,7 +137,7 @@ The selectors rely on semantic data attributes and stable link shapes rather tha
 
 ## Tested
 
-Unit tests cover URL and commit parsing, the classic and React header fixtures, button idempotency, the diff model, syntax line-splitting and the minimap maths. They also cover reading diff lines and threads in both views, opening the comment box and the review box with *Approve* selected, and mapping GitHub's line keys onto the full file. `npm run e2e` checks these against live github.com:
+Unit tests cover URL and commit parsing, the classic and React header fixtures, button idempotency, the diff model, syntax line-splitting, side-by-side row pairing and the minimap maths. They also cover reading diff lines and threads in both views, opening the comment box and the review box with *Approve* selected, and mapping GitHub's line keys onto the full file. `npm run e2e` checks these against live github.com:
 
 - A 15-file PR: one button per header, the review renders the whole file with line numbers, highlighting and changes, and a minimap click scrolls.
 - A 2,745-line file renders in about 0.5 s, and clicking the bottom of the minimap reaches the end of the file.
@@ -143,7 +145,8 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 - The pull request button in the toolbar opens the PR's first file.
 - Navigating Conversation → Files changed works. A `pushState` URL change plus a newly rendered file header gets a button only on the Files tab.
 - Light and dark mode on both GitHub and the review page.
-- The theme picker applies Azure DevOps Dark, and the choice survives a reload.
+- The theme menu applies Azure DevOps Dark, and the choice survives a reload.
+- Side by side shows the same number of rows on both sides, with no added lines on the left and no deleted lines on the right, and the choice is remembered in new tabs.
 - **Back to GitHub** focuses the source tab and closes the review.
 - Review comments, signed out: thread markers match GitHub's threads, there is no **+**, and a marker scrolls the PR tab to the line.
 - File list: it lists every file in the PR and marks the open one, clicking a file opens it in place, **Alt+↓** / **Alt+↑** move between files, and the list can be hidden and shown again.
@@ -163,7 +166,7 @@ Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons app
 - Very long lines are measured in `ch` units, so wide (CJK) characters can make the horizontal scroll width slightly short.
 - **github.com and `*.ghe.com` only.** GitHub Enterprise Server (self-hosted, any domain) is not supported: each host would need to be granted at runtime through optional host permissions. On GHE.com the public REST API fallback for commits is not used.
 - **File list:** the **+** for a file appears once GitHub has rendered that file's lines. Opening a file asks the GitHub tab to show it, so this usually takes a moment. GitHub's "Viewed" checkboxes are not shown or synced. For a renamed file far down a large PR, DiffSanity may need GitHub to render it before it knows the old path.
-- Not implemented yet: writing comments inside the review page, a side-by-side view, j/k change navigation, word-level highlighting and a native file viewer for images. The normalised `FileDiff` model and the separate renderer and minimap are meant to make these additive.
+- Not implemented yet: writing comments inside the review page, j/k change navigation, word-level highlighting and a native file viewer for images. The normalised `FileDiff` model and the separate renderer and minimap are meant to make these additive.
 
 ## Publishing
 

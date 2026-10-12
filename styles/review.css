@@ -197,6 +197,7 @@
   --ds-hover: color-mix(in srgb, var(--ds-fg) 7%, transparent);
   --ds-pressed: color-mix(in srgb, var(--ds-fg) 12%, transparent);
   --ds-selected: color-mix(in srgb, var(--ds-accent) 16%, transparent);
+  --ds-shadow: 0 8px 24px rgb(0 0 0 / 0.18), 0 1px 3px rgb(0 0 0 / 0.08);
   --ds-ease: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
@@ -336,35 +337,100 @@
     background: var(--ds-del-fg);
   }
 
-  .ds-select {
-    position: relative;
+  .ds-segmented {
     display: inline-flex;
-    align-items: center;
     flex: none;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--ds-border);
+    border-radius: 8px;
+    background: var(--ds-bg);
   }
 
-  .ds-select select {
-    appearance: none;
-    height: 28px;
-    padding: 0 26px 0 10px;
-    border: 1px solid var(--ds-border);
+  .ds-segment {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 26px;
     border-radius: 6px;
+    color: var(--ds-fg-muted);
+    cursor: pointer;
+    transition:
+      background-color 150ms var(--ds-ease),
+      color 150ms var(--ds-ease);
+  }
+
+  .ds-segment:hover {
+    background: var(--ds-hover);
+    color: var(--ds-fg);
+  }
+
+  .ds-segment[aria-pressed="true"] {
+    background: var(--ds-selected);
+    color: var(--ds-accent);
+  }
+
+  .ds-segment:focus-visible {
+    outline-offset: 0;
+  }
+
+  /* Popover menu, placed under its button by reviewPage.ts */
+
+  .ds-menu {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    min-width: 220px;
+    padding: 4px;
+    border: 1px solid var(--ds-border);
+    border-radius: 10px;
     background: var(--ds-bg);
     color: var(--ds-fg);
-    font: 12px var(--ds-font-ui);
-    cursor: pointer;
-    transition: border-color 150ms var(--ds-ease);
+    box-shadow: var(--ds-shadow);
   }
 
-  .ds-select select:hover {
-    border-color: color-mix(in srgb, var(--ds-fg) 30%, var(--ds-border));
+  .ds-menu:popover-open {
+    animation: ds-menu-in 120ms var(--ds-ease);
   }
 
-  .ds-select svg {
-    position: absolute;
-    right: 8px;
+  .ds-menu-title {
+    padding: 6px 8px 4px;
     color: var(--ds-fg-muted);
-    pointer-events: none;
+    font: 600 11px var(--ds-font-ui);
+  }
+
+  .ds-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+    padding: 0 10px 0 8px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .ds-menu-item:hover {
+    background: var(--ds-hover);
+  }
+
+  .ds-menu-item:has(:focus-visible) {
+    outline: 2px solid var(--ds-accent);
+    outline-offset: -2px;
+  }
+
+  .ds-menu-check {
+    flex: none;
+    color: var(--ds-accent);
+    visibility: hidden;
+  }
+
+  .ds-menu-item:has(:checked) {
+    font-weight: 600;
+  }
+
+  .ds-menu-item:has(:checked) .ds-menu-check {
+    visibility: visible;
   }
 
   /* Status banner and loading state */
@@ -693,10 +759,62 @@
   .ds-code {
     --ds-num-width: calc(var(--ds-digits) * 1ch + 16px);
     --ds-gutter-width: calc(var(--ds-num-width) * 2 + 20px);
-    width: calc(var(--ds-gutter-width) + var(--ds-columns) * 1ch + 32px);
+    --ds-content-width: calc(var(--ds-gutter-width) + var(--ds-columns) * 1ch + 32px);
+    width: var(--ds-content-width);
     min-width: 100%;
     font: 12px var(--ds-font-mono);
     line-height: var(--ds-line-height);
+  }
+
+  /* Side by side: each pane scrolls sideways on its own, kept in step with the bar pinned to the bottom. */
+
+  .ds-code[data-layout="split"] {
+    --ds-gutter-width: calc(var(--ds-num-width) + 20px);
+    width: 100%;
+  }
+
+  .ds-panes,
+  .ds-hscroll {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ds-pane {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+  }
+
+  .ds-pane + .ds-pane,
+  .ds-hscroll-track + .ds-hscroll-track {
+    border-left: 1px solid var(--ds-border);
+  }
+
+  .ds-pane-content,
+  .ds-hscroll-spacer {
+    width: var(--ds-content-width);
+    min-width: 100%;
+  }
+
+  .ds-hscroll {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: var(--ds-bg);
+  }
+
+  .ds-hscroll-track {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .ds-hscroll-spacer {
+    height: 1px;
+  }
+
+  .ds-filler,
+  .ds-filler .ds-gutter {
+    background: var(--ds-bg-subtle);
   }
 
   .ds-chunk {
@@ -948,6 +1066,13 @@
   }
 }
 
+@keyframes ds-menu-in {
+  from {
+    opacity: 0;
+    translate: 0 -4px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   ::before,
@@ -955,7 +1080,8 @@
     transition-duration: 0ms !important;
   }
 
-  .ds-skeleton span {
+  .ds-skeleton span,
+  .ds-menu:popover-open {
     animation: none;
   }
 }

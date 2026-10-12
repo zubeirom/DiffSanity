@@ -20,7 +20,8 @@ Bring sanity back to GitHub diffs.
 
 GitHub's "Files changed" view shows small slices of each file, which makes it hard to understand a change in context. DiffSanity adds a button to every file header in a pull request, and one next to GitHub's Submit review button. Click it to review the pull request in a focused tab, the way Azure DevOps shows it:
 
-• The whole file as one unified diff, so every change is read in context
+• The whole file as one diff, so every change is read in context
+• Show changes in one column or side by side
 • Every changed file in a list on the left, like GitHub's, so you can move through the whole pull request without leaving the tab
 • See at a glance whether a file is new, modified, deleted or renamed
 • Syntax highlighting for common languages

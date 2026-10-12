@@ -120,6 +120,28 @@ try {
     assert(await review.locator('#ds-sidebar').isVisible(), 'sidebar not shown again');
   });
 
+  await check('side by side view: old file left, new file right, remembered', async () => {
+    await review.locator('.ds-segment[data-layout="split"]').click();
+    await review.locator('.ds-pane').nth(1).waitFor();
+    const counts = await review.evaluate(() => {
+      const [left, right] = document.querySelectorAll('.ds-pane-content');
+      return {
+        left: left.querySelectorAll('.ds-line').length,
+        right: right.querySelectorAll('.ds-line').length,
+        wrongLeft: left.querySelectorAll('.ds-add').length,
+        wrongRight: right.querySelectorAll('.ds-del').length,
+      };
+    });
+    assert(counts.left > 0 && counts.left === counts.right, `rows ${counts.left} / ${counts.right}`);
+    assert(counts.wrongLeft === 0 && counts.wrongRight === 0, `added lines left ${counts.wrongLeft}, deleted lines right ${counts.wrongRight}`);
+    await review.screenshot({ path: path.join(SCREENSHOTS, 'review-split.png') });
+    const other = await context.newPage();
+    await other.goto(review.url());
+    await other.locator('.ds-pane').first().waitFor({ timeout: 30_000 });
+    await other.close();
+    await review.locator('.ds-segment[data-layout="unified"]').click();
+    assert((await review.locator('.ds-pane').count()) === 0, 'still side by side');
+  });
   await check('dark theme', async () => {
     const dark = await context.newPage();
     const url = new URL(review.url());
@@ -136,15 +158,23 @@ try {
     const themed = await context.newPage();
     await themed.goto(review.url());
     await themed.waitForSelector('.ds-line');
-    await themed.selectOption('#ds-theme', 'ado-dark');
+    const pickTheme = async (label) => {
+      await themed.locator('#ds-theme-button').click();
+      await themed.locator('#ds-theme-menu').getByText(label, { exact: true }).click();
+      await themed.keyboard.press('Escape');
+    };
+    await pickTheme('Azure DevOps Dark');
     const background = await themed.evaluate(() => getComputedStyle(document.body).backgroundColor);
     assert(background === 'rgb(30, 30, 30)', `background ${background}`);
     await themed.screenshot({ path: path.join(SCREENSHOTS, 'review-ado-dark.png') });
     await themed.reload();
     await themed.waitForSelector('.ds-line');
-    const kept = await themed.evaluate(() => [document.documentElement.dataset.theme, document.querySelector('#ds-theme').value]);
+    const kept = await themed.evaluate(() => [
+      document.documentElement.dataset.theme,
+      document.querySelector('input[name="ds-theme"]:checked')?.value,
+    ]);
     assert(kept[0] === 'ado-dark' && kept[1] === 'ado-dark', `after reload: ${kept}`);
-    await themed.selectOption('#ds-theme', 'auto');
+    await pickTheme('Match GitHub');
     await themed.close();
   });
 

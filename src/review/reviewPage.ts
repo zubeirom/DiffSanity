@@ -1,17 +1,37 @@
 import { fromReviewSearch, pullRequestFilesUrl, toReviewSearch } from '../shared/githubContext';
-import type { FileStatus, Message, OpenApprovalResponse, PullRequestFile, ReviewRequest, Theme } from '../shared/types';
+import type {
+  FileDiff,
+  FileStatus,
+  Message,
+  OpenApprovalResponse,
+  PullRequestFile,
+  PullRequestRef,
+  ReviewRequest,
+  Revisions,
+  Theme,
+} from '../shared/types';
 import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { diffstatBlocks } from './diffstat';
 import { STATUS_LABELS, statusIcon } from './fileStatus';
 import { FileTree } from './fileTree';
 import { listSourceTabFiles, loadFileContents, loadPullRequestFiles, LoadError, type FileContents } from './fileSource';
+import { octicon } from './icons';
+import { loadLayout, parseLayout, saveLayout, type DiffLayout } from './layout';
 import { Minimap } from './minimap';
-import { LINE_HEIGHT, renderDiff } from './renderer';
+import { LINE_HEIGHT, renderDiff, type HighlightedSources, type RenderedDiff } from './renderer';
 import { setupSidebar } from './sidebar';
 import { focusReviewTab, sendToSourceTab } from './sourceTab';
 import { highlightLines } from './syntax';
-import { loadThemeChoice, parseThemeChoice, resolveThemeId, saveThemeChoice, THEME_STORAGE_KEY, THEMES } from './themes';
+import {
+  loadThemeChoice,
+  parseThemeChoice,
+  resolveThemeId,
+  saveThemeChoice,
+  THEME_STORAGE_KEY,
+  THEMES,
+  type ThemeChoice,
+} from './themes';
 
 /** Lines of context kept above the first change when the file opens. */
 const CONTEXT_ABOVE_FIRST_CHANGE = 4;
@@ -22,6 +42,10 @@ const RENAME_LOOKUP_ATTEMPTS = 5;
 const RENAME_LOOKUP_DELAY_MS = 400;
 /** Widths (% of the code area) of the placeholder lines shown while a file loads. */
 const SKELETON_LINE_WIDTHS = [32, 54, 46, 0, 28, 61, 70, 38, 0, 44, 57, 24];
+/** Gap between a menu and the button that opens it, in px. */
+const MENU_OFFSET = 6;
+const CHECK_ICON =
+  'M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z';
 
 function element<T extends HTMLElement>(selector: string): T {
   const found = document.querySelector<T>(selector);
@@ -33,28 +57,57 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-/** Applies the saved colour theme, offers the picker, and keeps every open review tab in sync. */
+/** Places a popover menu under the right edge of its button and focuses its selected item when it opens. */
+function setupMenu(button: HTMLButtonElement, menu: HTMLElement): void {
+  menu.addEventListener('toggle', () => {
+    const open = menu.matches(':popover-open');
+    button.setAttribute('aria-expanded', String(open));
+    if (!open) return;
+    const rect = button.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + MENU_OFFSET}px`;
+    menu.style.right = `${document.documentElement.clientWidth - rect.right}px`;
+    menu.querySelector<HTMLInputElement>('input:checked')?.focus();
+  });
+}
+
+function themeOption(choice: ThemeChoice, label: string): HTMLLabelElement {
+  const option = document.createElement('label');
+  option.className = 'ds-menu-item';
+  const input = document.createElement('input');
+  input.type = 'radio';
+  input.name = 'ds-theme';
+  input.value = choice;
+  input.className = 'sr-only';
+  const check = octicon(CHECK_ICON, 16);
+  check.classList.add('ds-menu-check');
+  option.append(input, check, label);
+  return option;
+}
+
+/** Applies the saved colour theme, offers the theme menu, and keeps every open review tab in sync. */
 function setupTheme(request: ReviewRequest | null, onChange: () => void): void {
   const root = document.documentElement;
-  const picker = element<HTMLSelectElement>('#ds-theme');
+  const button = element<HTMLButtonElement>('#ds-theme-button');
+  const options = element('#ds-theme-options');
   const query = matchMedia('(prefers-color-scheme: dark)');
   const githubTheme = (): Theme => request?.theme ?? (query.matches ? 'dark' : 'light');
+  const labels = new Map<ThemeChoice, string>([['auto', 'Match GitHub'], ...THEMES.map((theme) => [theme.id, theme.label] as const)]);
   let choice = loadThemeChoice();
 
   const apply = () => {
     root.dataset.theme = resolveThemeId(choice, githubTheme());
-    picker.value = choice;
+    for (const input of options.querySelectorAll<HTMLInputElement>('input')) input.checked = input.value === choice;
+    button.title = `Colour theme: ${labels.get(choice)}`;
     onChange();
   };
-  picker.replaceChildren(
-    new Option('Match GitHub', 'auto'),
-    ...THEMES.map((theme) => new Option(theme.label, theme.id)),
-  );
-  picker.addEventListener('change', () => {
-    choice = parseThemeChoice(picker.value);
+  options.replaceChildren(...[...labels].map(([id, label]) => themeOption(id, label)));
+  // The menu stays open, so themes can be tried one after another.
+  options.addEventListener('change', (event) => {
+    choice = parseThemeChoice((event.target as HTMLInputElement).value);
     saveThemeChoice(choice);
     apply();
   });
+  setupMenu(button, element('#ds-theme-menu'));
   // Fired in other review tabs when the choice changes in one of them.
   window.addEventListener('storage', (event) => {
     if (event.key !== THEME_STORAGE_KEY && event.key !== null) return;
@@ -119,9 +172,12 @@ function renderStats(additions: number, deletions: number, contents: FileContent
     }),
   );
   renderStatus(contents.status);
-  const { baseSha, headSha } = contents.revisions;
-  element('#ds-revisions').textContent = `${baseSha.slice(0, 7)} → ${headSha.slice(0, 7)}`;
-  element('#ds-revisions').title = `Base ${baseSha}\nHead ${headSha}`;
+}
+
+/** Tooltip of the pull request link, with the commits being compared once they are known. */
+function pullRequestTitle({ owner, repo, pr }: PullRequestRef, { baseSha, headSha }: Revisions): string {
+  const title = `Pull request ${owner}/${repo} #${pr} on GitHub`;
+  return baseSha && headSha ? `${title}\nComparing ${baseSha.slice(0, 7)} → ${headSha.slice(0, 7)}` : title;
 }
 
 function showMessage(text: string, kind: 'loading' | 'error' | 'info'): void {
@@ -156,21 +212,32 @@ function isSameFile(a: PullRequestFile, b: PullRequestFile): boolean {
   return (!!a.anchor && a.anchor === b.anchor) || a.path === b.path;
 }
 
+/** A loaded file, ready to be drawn in either layout. */
+interface FileView {
+  file: PullRequestFile;
+  diff: FileDiff;
+  sources: HighlightedSources;
+}
+
 /** Everything that belongs to the file on screen and must be undone before showing another one. */
 interface ShownFile {
-  path: string;
+  view: FileView;
+  rendered: RenderedDiff;
   minimap: Minimap;
   comments?: GitHubComments;
 }
 
 /**
  * The review tab: one file at a time, with the pull request's other changed files in a sidebar.
- * Contents are cached per file and the scroll position is kept, so switching back and forth is instant.
+ * Contents are cached per file and the reading position is kept, so switching back and forth is instant.
  */
 class ReviewPage {
   private readonly scroller = element('#ds-scroller');
   private readonly contents = new Map<string, Promise<FileContents>>();
-  private readonly scrollTops = new Map<string, number>();
+  /** Diff line at the top of the view when each file was last shown. A line, not pixels, so it survives a layout change. */
+  private readonly topLines = new Map<string, number>();
+  private readonly layoutButtons = [...document.querySelectorAll<HTMLButtonElement>('[data-layout]')];
+  private layout: DiffLayout = loadLayout();
   private file: PullRequestFile;
   private shown: ShownFile | undefined;
   private tree: FileTree | undefined;
@@ -189,12 +256,32 @@ class ReviewPage {
     const pr = element<HTMLAnchorElement>('#ds-pr');
     element('#ds-pr-repo').textContent = `${session.owner}/${session.repo}`;
     element('#ds-pr-number').textContent = `#${session.pr}`;
-    pr.title = `Pull request ${session.owner}/${session.repo} #${session.pr} on GitHub`;
+    pr.title = pullRequestTitle(session, session);
     pr.href = pullRequestFilesUrl({ ...session, anchor: undefined });
     const approve = element<HTMLButtonElement>('#ds-approve');
     approve.hidden = session.sourceTabId === undefined;
     approve.addEventListener('click', () => void this.openApproval());
+    for (const button of this.layoutButtons) {
+      button.addEventListener('click', () => this.setLayout(parseLayout(button.dataset.layout)));
+    }
+    this.updateLayoutButtons();
     document.addEventListener('keydown', this.onKeyDown);
+  }
+
+  /** Switches between one column and side by side, keeping the reading position. */
+  private setLayout(layout: DiffLayout): void {
+    if (layout === this.layout) return;
+    this.layout = layout;
+    saveLayout(layout);
+    this.updateLayoutButtons();
+    const view = this.shown?.view;
+    if (!view) return;
+    this.hideFile();
+    this.display(view, Promise.resolve(false));
+  }
+
+  private updateLayoutButtons(): void {
+    for (const button of this.layoutButtons) button.setAttribute('aria-pressed', String(button.dataset.layout === this.layout));
   }
 
   /** Hands the approval to GitHub: its review box opens with "Approve" selected, and the user submits it there. */
@@ -268,6 +355,7 @@ class ReviewPage {
       contents = loadFileContents(request).then((loaded) => {
         // Later files skip looking up the commits again.
         this.session = { ...this.session, ...loaded.revisions };
+        element('#ds-pr').title = pullRequestTitle(this.session, this.session);
         return loaded;
       });
       contents.catch(() => this.contents.delete(request.path));
@@ -314,15 +402,25 @@ class ReviewPage {
       newContent: contents.newContent,
     });
     renderStats(diff.additions, diff.deletions, contents);
-    const rendered = renderDiff(this.scroller, diff, {
+    const sources: HighlightedSources = {
       old: highlightLines(splitLines(contents.oldContent), file.oldPath ?? file.path),
       new: highlightLines(splitLines(contents.newContent), file.path),
-    });
+    };
     hideMessage();
     if (diff.approximate) showMessage('This file changed too much to diff precisely; it is shown as fully replaced.', 'info');
     if (!diff.lines.length) showMessage('This file is empty.', 'info');
 
-    const minimap = new Minimap(element('#ds-minimap'), this.scroller, diff.lines, LINE_HEIGHT);
+    this.display({ file, diff, sources }, revealed);
+    if (!this.scroller.contains(document.activeElement) && !element('#ds-sidebar').contains(document.activeElement)) {
+      this.scroller.focus({ preventScroll: true });
+    }
+  }
+
+  /** Draws a loaded file in the current layout, with its minimap and links to GitHub's comments. */
+  private display(view: FileView, revealed: Promise<boolean>): void {
+    const { file, diff } = view;
+    const rendered = renderDiff(this.scroller, diff, view.sources, this.layout);
+    const minimap = new Minimap(element('#ds-minimap'), this.scroller, diff.lines, LINE_HEIGHT, rendered);
     const request = this.request(file);
     const { sourceTabId, anchor } = request;
     const comments =
@@ -331,7 +429,7 @@ class ReviewPage {
             showMessage(text, 'info'),
           )
         : undefined;
-    this.shown = { path: file.path, minimap, comments };
+    this.shown = { view, rendered, minimap, comments };
     // GitHub may still be rendering the file it was just scrolled to; read its lines again once it is likely done.
     void revealed.then(async (ok) => {
       if (!ok) return;
@@ -339,18 +437,15 @@ class ReviewPage {
       if (this.shown?.comments === comments) await comments?.refresh();
     });
 
-    const saved = this.scrollTops.get(file.path);
+    const topLine = this.topLines.get(file.path);
     const firstChange = findChangeBlocks(diff.lines)[0];
-    if (saved !== undefined) this.scroller.scrollTop = saved;
+    if (topLine !== undefined) rendered.scrollToLine(topLine);
     else if (firstChange) rendered.scrollToLine(Math.max(0, firstChange.start - CONTEXT_ABOVE_FIRST_CHANGE));
-    if (!this.scroller.contains(document.activeElement) && !element('#ds-sidebar').contains(document.activeElement)) {
-      this.scroller.focus({ preventScroll: true });
-    }
   }
 
   private hideFile(): void {
     if (!this.shown) return;
-    this.scrollTops.set(this.shown.path, this.scroller.scrollTop);
+    this.topLines.set(this.shown.view.file.path, this.shown.rendered.topLine());
     this.shown.comments?.destroy();
     this.shown.minimap.destroy();
     this.shown = undefined;
