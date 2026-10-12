@@ -22,6 +22,7 @@ GitHub's "Files changed" view shows small slices of each file, which makes it ha
 
 • The whole file as one unified diff, so every change is read in context
 • Every changed file in a list on the left, like GitHub's, so you can move through the whole pull request without leaving the tab
+• See at a glance whether a file is new, modified, deleted or renamed
 • Syntax highlighting for common languages
 • A minimap of the full file with additions, deletions and comments; click or drag to jump
 • Existing review conversations shown inline

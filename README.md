@@ -12,7 +12,7 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
 - **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree with its status. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it, or hide it with the button at the top left.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
-- **A clear toolbar** shows the file's path, status, a +/− change bar, the PR and the commits being compared.
+- **A clear toolbar** shows the file's path, whether it is a **New file**, **Modified**, **Deleted** or **Renamed**, a +/− change bar, the PR and the commits being compared.
 - **Approve from the review tab.** The **Approve** button in the toolbar switches to the PR tab and opens GitHub's own review box with *Approve* already selected. You can add a note, then press GitHub's **Submit review**. DiffSanity never submits it for you.
 - **Back to GitHub** returns to the PR tab you came from and closes the review tab.
 - **Colour themes.** Pick one from the dropdown at the top right: *Match GitHub* (the default, which follows your GitHub light/dark mode), *GitHub Light*, *GitHub Dark*, *Azure DevOps Dark* or *Azure DevOps Light* (the Monaco editor colours and font ADO uses to show files). Your choice is saved in the extension's local storage and applies to all review tabs.
@@ -89,6 +89,7 @@ flowchart LR
 | `src/shared/githubContext.ts` | Pure helpers: URL parsing, commit extraction, rename parsing, raw URLs, review-request (de)serialisation and validation, and the allowed-origin list. |
 | `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its scroll position, and keeps the URL and the GitHub tab in step with the open file. |
 | `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list (from the GitHub tab, or by fetching the PR page) and downloads both file versions. |
+| `src/review/fileStatus.ts` | Plain-word labels and one-letter codes for a file's status (new, modified, deleted, renamed). |
 | `src/review/fileTree.ts` | Builds the folder tree (folders first, single-child folders merged) and renders the file list with filtering and keyboard navigation. |
 | `src/review/diffstat.ts` | Works out the five-block +/− change bar shown in the toolbar. |
 | `src/review/sidebar.ts` | Shows, hides and resizes the file list, and remembers its width and visibility in `localStorage`. |
@@ -137,7 +138,7 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 
 - A 15-file PR: one button per header, the review renders the whole file with line numbers, highlighting and changes, and a minimap click scrolls.
 - A 2,745-line file renders in about 0.5 s, and clicking the bottom of the minimap reaches the end of the file.
-- A renamed file loads the old path and shows "renamed from".
+- The toolbar says whether the file is new, modified, deleted or renamed. A renamed file loads the old path and shows where it came from.
 - The pull request button in the toolbar opens the PR's first file.
 - Navigating Conversation → Files changed works. A `pushState` URL change plus a newly rendered file header gets a button only on the Files tab.
 - Light and dark mode on both GitHub and the review page.

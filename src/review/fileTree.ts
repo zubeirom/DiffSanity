@@ -1,4 +1,5 @@
-import type { FileStatus, PullRequestFile } from '../shared/types';
+import type { PullRequestFile } from '../shared/types';
+import { STATUS_LABELS, STATUS_LETTERS } from './fileStatus';
 
 /** A node of the changed-files tree. */
 export type FileTreeNode =
@@ -13,7 +14,6 @@ interface Directory {
 }
 
 const FILTER_DELAY_MS = 100;
-const STATUS_LETTERS: Record<FileStatus, string> = { added: 'A', deleted: 'D', renamed: 'R', modified: 'M' };
 
 function baseName(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
@@ -103,6 +103,7 @@ function icon(path: string, size: number): SVGSVGElement {
 
 function describeFile(file: PullRequestFile): string {
   const lines = [file.oldPath ? `${file.oldPath} → ${file.path}` : file.path];
+  if (file.status) lines.push(STATUS_LABELS[file.status]);
   if (file.additions !== undefined && file.deletions !== undefined) lines.push(`+${file.additions} −${file.deletions}`);
   return lines.join('\n');
 }
@@ -205,7 +206,7 @@ export class FileTree {
       const status = element('span', 'ds-tree-status', file.status ? STATUS_LETTERS[file.status] : '');
       if (file.status) {
         status.dataset.status = file.status;
-        status.title = file.status;
+        status.title = STATUS_LABELS[file.status];
       }
       row.append(status, element('span', 'ds-tree-name', node.name));
       if (file.additions !== undefined && file.deletions !== undefined) {

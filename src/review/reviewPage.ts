@@ -1,8 +1,9 @@
 import { fromReviewSearch, pullRequestFilesUrl, toReviewSearch } from '../shared/githubContext';
-import type { Message, OpenApprovalResponse, PullRequestFile, ReviewRequest, Theme } from '../shared/types';
+import type { FileStatus, Message, OpenApprovalResponse, PullRequestFile, ReviewRequest, Theme } from '../shared/types';
 import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { diffstatBlocks } from './diffstat';
+import { STATUS_LABELS } from './fileStatus';
 import { FileTree } from './fileTree';
 import { listSourceTabFiles, loadFileContents, loadPullRequestFiles, LoadError, type FileContents } from './fileSource';
 import { Minimap } from './minimap';
@@ -89,12 +90,21 @@ function renderFileHeader(file: PullRequestFile): void {
   element('#ds-name').textContent = name;
   const renamed = element('#ds-renamed');
   renamed.hidden = !file.oldPath || file.oldPath === file.path;
-  renamed.textContent = renamed.hidden ? '' : `renamed from ${file.oldPath}`;
-  element('#ds-status').hidden = true;
+  renamed.textContent = renamed.hidden ? '' : `from ${file.oldPath}`;
+  renderStatus(file.status);
   element('#ds-additions').textContent = '';
   element('#ds-deletions').textContent = '';
   element('#ds-diffstat').replaceChildren();
   document.title = `${name} · DiffSanity`;
+}
+
+/** Shows whether the file is new, modified, deleted or renamed. Hidden until the status is known. */
+function renderStatus(status: FileStatus | undefined): void {
+  const pill = element('#ds-status');
+  pill.hidden = !status;
+  pill.textContent = status ? STATUS_LABELS[status] : '';
+  if (status) pill.dataset.status = status;
+  else delete pill.dataset.status;
 }
 
 function renderStats(additions: number, deletions: number, contents: FileContents): void {
@@ -108,10 +118,7 @@ function renderStats(additions: number, deletions: number, contents: FileContent
       return block;
     }),
   );
-  const badge = element('#ds-status');
-  badge.hidden = contents.status !== 'added' && contents.status !== 'deleted';
-  badge.textContent = badge.hidden ? '' : contents.status;
-  badge.dataset.status = contents.status;
+  renderStatus(contents.status);
   const { baseSha, headSha } = contents.revisions;
   element('#ds-revisions').textContent = `${baseSha.slice(0, 7)} → ${headSha.slice(0, 7)}`;
   element('#ds-revisions').title = `Base ${baseSha}\nHead ${headSha}`;

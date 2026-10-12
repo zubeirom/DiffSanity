@@ -62,6 +62,9 @@ try {
     const lines = await review.locator('.ds-line').count();
     const changes = await review.locator('.ds-add, .ds-del').count();
     assert(lines > changes && changes > 0, `${lines} lines, ${changes} changed`);
+    // Unchanged lines mean the file existed before, so it is neither new nor deleted.
+    const status = await review.locator('#ds-status').textContent();
+    assert(status === 'Modified' || status === 'Renamed', `status pill "${status}"`);
     assert((await review.title()).endsWith('· DiffSanity'), `title "${await review.title()}"`);
   });
   await check('line numbers on both sides', async () => {
@@ -216,10 +219,12 @@ try {
   console.log('Renamed file');
   await page.goto(`${RENAME_PR}/files`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('.diffsanity-button', { timeout: 30_000 });
-  await check('rename shows the old path and diffs against it', async () => {
+  await check('rename shows the status pill and old path, and diffs against it', async () => {
     const renamed = await openReview(context, page, '.diffsanity-button[aria-label*="dataTransfer"]');
     const label = await renamed.locator('#ds-renamed').textContent();
-    assert(label?.includes('renamed from'), `label "${label}"`);
+    assert(label?.startsWith('from '), `label "${label}"`);
+    const status = await renamed.locator('#ds-status').textContent();
+    assert(status === 'Renamed', `status pill "${status}"`);
     assert((await renamed.locator('.ds-line:not(.ds-add)').count()) > 0, 'no unchanged lines: old path not loaded');
     await renamed.close();
   });
