@@ -151,6 +151,6 @@ describe('clampSidebarWidth', () => {
     expect(clampSidebarWidth(300, 1600)).toBe(300);
     expect(clampSidebarWidth(40, 1600)).toBe(160);
     expect(clampSidebarWidth(1500, 1000)).toBe(600);
-    expect(clampSidebarWidth(Number.NaN, 1000)).toBe(300);
+    expect(clampSidebarWidth(Number.NaN, 1000)).toBe(400);
   });
 });

@@ -1,7 +1,7 @@
 /** Width and visibility of the file sidebar, remembered across review tabs like the theme. */
 const WIDTH_KEY = 'diffsanity.sidebarWidth';
 const HIDDEN_KEY = 'diffsanity.sidebarHidden';
-const DEFAULT_WIDTH = 300;
+const DEFAULT_WIDTH = 400;
 const MIN_WIDTH = 160;
 /** The diff keeps at least this share of the window. */
 const MAX_WIDTH_SHARE = 0.6;
