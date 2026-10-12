@@ -6,6 +6,7 @@ import type {
   Message,
   OpenApprovalResponse,
   PullRequestFile,
+  PullRequestFileList,
   PullRequestRef,
   ReviewRequest,
 } from '../shared/types';
@@ -47,7 +48,7 @@ function openReview(file: PullRequestFile, event: MouseEvent): void {
 /** Opens the pull request's first file; the review tab's file list leads to the others. */
 function openPullRequest(event: MouseEvent): void {
   const pullRequest = parsePullRequestUrl(location.href);
-  const [first] = pullRequest ? extractPullRequestFiles(document, pullRequest.pr) : [];
+  const [first] = pullRequest ? extractPullRequestFiles(document, pullRequest.pr).files : [];
   if (first) openReview(first, event);
   else console.warn('[DiffSanity] Could not find the changed files. Reload the page and try again.');
 }
@@ -111,10 +112,10 @@ function handleMessage(message: Message, _sender: chrome.runtime.MessageSender, 
       revealLine(message.anchor, message.lineKey, message.startComment).then(sendResponse);
       return true;
     case 'diffsanity:listFiles': {
-      const files: PullRequestFile[] = showsPullRequest(message.pullRequest)
+      const list: PullRequestFileList = showsPullRequest(message.pullRequest)
         ? extractPullRequestFiles(document, message.pullRequest.pr)
-        : [];
-      sendResponse(files);
+        : { files: [], complete: false };
+      sendResponse(list);
       return false;
     }
     case 'diffsanity:revealFile':

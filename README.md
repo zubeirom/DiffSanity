@@ -89,7 +89,7 @@ flowchart LR
 | `src/background/index.ts` | Opens `review.html?<request>` next to the source tab. |
 | `src/shared/githubContext.ts` | Pure helpers: URL parsing, commit extraction, rename parsing, raw URLs, review-request (de)serialisation and validation, and the allowed-origin list. |
 | `src/review/reviewPage.ts` | Runs the review tab. Switches files in place, caches each loaded file and its reading position (kept when the layout changes), switches the layout, and keeps the URL and the GitHub tab in step with the open file. |
-| `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list (from the GitHub tab, or by fetching the PR page) and downloads both file versions. |
+| `src/review/fileSource.ts` | Resolves the base/head commits, gets the PR's file list and downloads both file versions. The file list comes from the GitHub tab when it holds GitHub's full list. Otherwise (for example after clicking to *Files changed* without a page load) the PR page is fetched. |
 | `src/review/fileStatus.ts` | Plain-word labels and Octicon icons for a file's status (new, modified, deleted, renamed). |
 | `src/review/icons.ts` | Draws an inline Octicon SVG (no icon fonts or remote assets). |
 | `src/review/fileTree.ts` | Builds the folder tree (folders first, single-child folders merged) and renders the file list with filtering and keyboard navigation. |
@@ -153,7 +153,7 @@ Unit tests cover URL and commit parsing, the classic and React header fixtures, 
 
 Verified by hand while signed in (React view): **+** opens GitHub's "Add a comment on line R116" box with the cursor in it, and thread markers match on a PR with comments.
 
-Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons appear on every file, the review page loads the whole file with the diff, minimap and revisions, and **+** appears on commentable lines. The file list was checked on two GHE.com PRs (44 and 22 files, including a renamed file): every file is listed and opens without errors. **Approve** opens GitHub's "Finish your review" box on the PR tab with *Approve* selected (nothing was submitted).
+Verified by hand on a GHE.com enterprise (internal repository, SSO): buttons appear on every file, the review page loads the whole file with the diff, minimap and revisions, and **+** appears on commentable lines. The file list was checked on two GHE.com PRs (44 and 22 files, including a renamed file): every file is listed and opens without errors. Every file also gets its status icon when *Files changed* was reached from the Conversation tab without a page load. **Approve** opens GitHub's "Finish your review" box on the PR tab with *Approve* selected (nothing was submitted).
 
 ## Known limitations
 

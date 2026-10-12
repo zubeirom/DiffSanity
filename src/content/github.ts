@@ -13,6 +13,7 @@ import type {
   GoToLineResponse,
   OpenApprovalResponse,
   PullRequestFile,
+  PullRequestFileList,
   Revisions,
   Theme,
 } from '../shared/types';
@@ -185,18 +186,19 @@ function classicFileList(doc: Document): PullRequestFile[] | null {
 }
 
 /**
- * Lists every changed file of pull request `pr`, in GitHub's order. Works on the live page and on
- * a fetched copy of it. Returns an empty list when the page does not show that pull request's files.
+ * Lists every changed file of pull request `pr`, in GitHub's order. Works on the live page and on a fetched copy
+ * of it. Without GitHub's full list (see `PullRequestFileList.complete`) only the rendered file headers are listed;
+ * there are none when the page does not show that pull request's files.
  */
-export function extractPullRequestFiles(doc: Document, pr: number): PullRequestFile[] {
+export function extractPullRequestFiles(doc: Document, pr: number): PullRequestFileList {
   const headers = findFileHeaders(doc);
   const list = reactFileList(doc, pr) ?? classicFileList(doc);
   if (!list) {
-    return headers.map(({ path, oldPath, status, anchor }) => ({ path, oldPath, status, anchor }));
+    return { files: headers.map(({ path, oldPath, status, anchor }) => ({ path, oldPath, status, anchor })), complete: false };
   }
   const byAnchor = new Map(headers.filter((header) => header.anchor).map((header) => [header.anchor, header]));
   const byPath = new Map(headers.map((header) => [header.path, header]));
-  return list.map((file) => {
+  const files = list.map((file) => {
     const header = (file.anchor && byAnchor.get(file.anchor)) || byPath.get(file.path);
     if (!header) return file;
     return {
@@ -206,6 +208,7 @@ export function extractPullRequestFiles(doc: Document, pr: number): PullRequestF
       anchor: file.anchor ?? header.anchor,
     };
   });
+  return { files, complete: true };
 }
 
 /**

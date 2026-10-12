@@ -438,7 +438,9 @@ describe('openApproval', () => {
 describe('extractPullRequestFiles', () => {
   it('lists every React file from the embedded data, adding old paths from rendered headers', () => {
     document.body.innerHTML = reactEmbeddedData(7) + REACT_RENAMED;
-    expect(extractPullRequestFiles(document, 7)).toEqual([
+    const { files, complete } = extractPullRequestFiles(document, 7);
+    expect(complete).toBe(true);
+    expect(files).toEqual([
       { path: 'src/app.ts', oldPath: undefined, status: 'modified', anchor: 'diff-aaa', additions: 3, deletions: 1 },
       { path: 'src/new.ts', oldPath: 'src/old.ts', status: 'renamed', anchor: 'diff-bbb', additions: 0, deletions: 0 },
       {
@@ -453,16 +455,19 @@ describe('extractPullRequestFiles', () => {
     ]);
   });
 
-  it('ignores embedded data of another pull request', () => {
+  it('ignores embedded data of another pull request, e.g. after client-side navigation', () => {
     document.body.innerHTML = reactEmbeddedData(8) + REACT;
-    expect(extractPullRequestFiles(document, 7)).toEqual([
-      { path: 'lib/util.py', oldPath: undefined, status: undefined, anchor: 'diff-ddd' },
-    ]);
+    expect(extractPullRequestFiles(document, 7)).toEqual({
+      files: [{ path: 'lib/util.py', oldPath: undefined, status: undefined, anchor: 'diff-ddd' }],
+      complete: false,
+    });
   });
 
   it('lists every classic file from the file tree, adding old paths from rendered headers', () => {
     document.body.innerHTML = CLASSIC_TREE + CLASSIC;
-    expect(extractPullRequestFiles(document, 1)).toEqual([
+    const { files, complete } = extractPullRequestFiles(document, 1);
+    expect(complete).toBe(true);
+    expect(files).toEqual([
       { path: 'src/app.ts', status: 'modified', anchor: 'diff-aaa' },
       { path: 'src/dataTransfer.ts', oldPath: 'src/dnd.ts', status: 'renamed', anchor: 'diff-bbb' },
       { path: 'old.txt', oldPath: undefined, status: 'deleted', anchor: 'diff-ccc' },
@@ -471,12 +476,14 @@ describe('extractPullRequestFiles', () => {
 
   it('falls back to the rendered headers', () => {
     document.body.innerHTML = CLASSIC;
-    expect(extractPullRequestFiles(document, 1).map((file) => file.path)).toEqual(['src/app.ts', 'src/dataTransfer.ts', 'old.txt']);
+    const { files, complete } = extractPullRequestFiles(document, 1);
+    expect(complete).toBe(false);
+    expect(files.map((file) => file.path)).toEqual(['src/app.ts', 'src/dataTransfer.ts', 'old.txt']);
   });
 
   it('works on a fetched copy of the page', () => {
     const doc = new DOMParser().parseFromString(`<html><body>${reactEmbeddedData(7)}</body></html>`, 'text/html');
-    expect(extractPullRequestFiles(doc, 7)).toHaveLength(4);
+    expect(extractPullRequestFiles(doc, 7).files).toHaveLength(4);
   });
 });
 

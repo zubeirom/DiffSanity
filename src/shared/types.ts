@@ -45,6 +45,16 @@ export interface PullRequestFile {
   deletions?: number;
 }
 
+/** A pull request's changed files, as read from one GitHub page. */
+export interface PullRequestFileList {
+  files: PullRequestFile[];
+  /**
+   * True when the page held GitHub's full file list. False when only the file headers it rendered were found
+   * (e.g. after client-side navigation): files can be missing, and so can the status of added or modified ones.
+   */
+  complete: boolean;
+}
+
 export interface Revisions {
   baseSha?: string;
   headSha?: string;
@@ -104,7 +114,7 @@ export type Message =
   | { type: 'diffsanity:fetchText'; url: string }
   | { type: 'diffsanity:lineInfo'; pullRequest: PullRequestRef; anchor: string }
   | { type: 'diffsanity:goToLine'; pullRequest: PullRequestRef; anchor: string; lineKey: string; startComment: boolean }
-  /** Answered with the pull request's `PullRequestFile[]` (empty when the tab shows something else). */
+  /** Answered with the pull request's `PullRequestFileList` (no files when the tab shows something else). */
   | { type: 'diffsanity:listFiles'; pullRequest: PullRequestRef }
   /** Scrolls the GitHub tab to a file, so it is where the user left off and GitHub loads its diff. */
   | { type: 'diffsanity:revealFile'; pullRequest: PullRequestRef; anchor: string }

@@ -1,6 +1,14 @@
 import { extractPullRequestFiles } from '../content/github';
-import { extractRevisionsFromText, pullRequestFilesUrl, rawFileUrl, toPullRequestFiles } from '../shared/githubContext';
-import type { FetchTextResponse, FileStatus, Message, PullRequestFile, ReviewRequest, Revisions } from '../shared/types';
+import { extractRevisionsFromText, pullRequestFilesUrl, rawFileUrl, toPullRequestFileList } from '../shared/githubContext';
+import type {
+  FetchTextResponse,
+  FileStatus,
+  Message,
+  PullRequestFile,
+  PullRequestFileList,
+  ReviewRequest,
+  Revisions,
+} from '../shared/types';
 
 export class LoadError extends Error {}
 
@@ -75,29 +83,36 @@ async function resolveRevisions(request: ReviewRequest): Promise<Required<Revisi
   return { baseSha: revisions.baseSha, headSha: revisions.headSha };
 }
 
-/** Asks the GitHub tab DiffSanity was opened from for the changed files it shows. Empty when it cannot answer. */
-export async function listSourceTabFiles(request: ReviewRequest): Promise<PullRequestFile[]> {
+const NO_FILES: PullRequestFileList = { files: [], complete: false };
+
+/** Asks the GitHub tab DiffSanity was opened from for the changed files it shows. No files when it cannot answer. */
+export async function listSourceTabFiles(request: ReviewRequest): Promise<PullRequestFileList> {
   const { owner, repo, pr, sourceTabId } = request;
-  if (sourceTabId === undefined) return [];
+  if (sourceTabId === undefined) return NO_FILES;
   try {
     const message: Message = { type: 'diffsanity:listFiles', pullRequest: { owner, repo, pr } };
-    return toPullRequestFiles(await chrome.tabs.sendMessage(sourceTabId, message));
+    return toPullRequestFileList(await chrome.tabs.sendMessage(sourceTabId, message));
   } catch {
     // The tab is closed, or runs a content script from before an extension reload.
-    return [];
+    return NO_FILES;
   }
 }
 
 /**
- * Lists every changed file of the pull request. The GitHub tab DiffSanity was opened from is asked first, as it
- * also knows what GitHub rendered there (e.g. where renamed files came from); otherwise the "Files changed" page is fetched.
+ * Lists every changed file of the pull request. The GitHub tab DiffSanity was opened from is asked first. When it
+ * lacks GitHub's full list (e.g. it reached "Files changed" without a page load), the page is fetched instead,
+ * keeping the old paths of renamed files that the tab rendered.
  */
 export async function loadPullRequestFiles(request: ReviewRequest): Promise<PullRequestFile[]> {
-  const files = await listSourceTabFiles(request);
-  if (files.length) return files;
+  const fromTab = await listSourceTabFiles(request);
+  if (fromTab.complete) return fromTab.files;
   const page = await fetchText(pullRequestFilesUrl({ ...request, anchor: undefined }), request.sourceTabId);
-  if (!page.text) return [];
-  return extractPullRequestFiles(new DOMParser().parseFromString(page.text, 'text/html'), request.pr);
+  const fetched = page.text
+    ? extractPullRequestFiles(new DOMParser().parseFromString(page.text, 'text/html'), request.pr)
+    : NO_FILES;
+  if (!fetched.complete) return fromTab.files.length ? fromTab.files : fetched.files;
+  const oldPaths = new Map(fromTab.files.map((file) => [file.path, file.oldPath]));
+  return fetched.files.map((file) => ({ ...file, oldPath: file.oldPath ?? oldPaths.get(file.path) }));
 }
 
 function looksBinary(text: string): boolean {

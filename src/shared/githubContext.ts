@@ -1,4 +1,4 @@
-import type { FileStatus, PullRequestFile, PullRequestRef, ReviewRequest, Revisions, Theme } from './types';
+import type { FileStatus, PullRequestFile, PullRequestFileList, PullRequestRef, ReviewRequest, Revisions, Theme } from './types';
 
 const PULL_PATH = /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/([^/]+))?/;
 const FILES_TABS = new Set(['files', 'changes']);
@@ -99,6 +99,12 @@ export function toPullRequestFiles(value: unknown): PullRequestFile[] {
     });
   }
   return files;
+}
+
+/** Validates a file list received from another part of the extension. */
+export function toPullRequestFileList(value: unknown): PullRequestFileList {
+  const list = value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+  return { files: toPullRequestFiles(list.files), complete: list.complete === true };
 }
 
 /** Serialises a review request into query parameters for the review page. */

@@ -369,7 +369,7 @@ class ReviewPage {
     if (file.status !== 'renamed' || file.oldPath) return file;
     for (let attempt = 0; attempt < RENAME_LOOKUP_ATTEMPTS && !cancelled(); attempt++) {
       await delay(RENAME_LOOKUP_DELAY_MS);
-      const oldPath = (await listSourceTabFiles(this.session)).find((listed) => isSameFile(listed, file))?.oldPath;
+      const oldPath = (await listSourceTabFiles(this.session)).files.find((listed) => isSameFile(listed, file))?.oldPath;
       if (oldPath) {
         const resolved = { ...file, oldPath };
         if (this.file === file && !cancelled()) {
