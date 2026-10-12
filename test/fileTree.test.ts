@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildFileTree, FileTree, matchesFilter, treeOrder } from '../src/review/fileTree';
-import { clampSidebarWidth } from '../src/review/sidebar';
+import { clampSidebarWidth, setupSidebar } from '../src/review/sidebar';
 import type { PullRequestFile } from '../src/shared/types';
 
 const FILES: PullRequestFile[] = [
@@ -152,5 +152,60 @@ describe('clampSidebarWidth', () => {
     expect(clampSidebarWidth(40, 1600)).toBe(160);
     expect(clampSidebarWidth(1500, 1000)).toBe(600);
     expect(clampSidebarWidth(Number.NaN, 1000)).toBe(400);
+  });
+});
+
+describe('setupSidebar', () => {
+  const WIDTH_KEY = 'diffsanity.sidebarWidth.v2';
+  let sidebar: HTMLElement;
+  let resizer: HTMLElement;
+
+  function setup(): void {
+    sidebar = document.createElement('aside');
+    resizer = document.createElement('div');
+    // jsdom has no pointer capture.
+    let captured = false;
+    resizer.setPointerCapture = () => { captured = true; };
+    resizer.releasePointerCapture = () => { captured = false; };
+    resizer.hasPointerCapture = () => captured;
+    setupSidebar(sidebar, resizer, document.createElement('button'));
+  }
+
+  function pointer(type: string, clientX = 0): void {
+    resizer.dispatchEvent(new MouseEvent(type, { button: 0, clientX, bubbles: true }));
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    window.innerWidth = 1600;
+  });
+
+  it('ignores and removes a width saved under the old key', () => {
+    localStorage.setItem('diffsanity.sidebarWidth', '300');
+    setup();
+    expect(sidebar.style.width).toBe('400px');
+    expect(localStorage.getItem('diffsanity.sidebarWidth')).toBeNull();
+  });
+
+  it('only remembers the width after a real drag', () => {
+    setup();
+    pointer('pointerdown');
+    pointer('pointerup');
+    expect(localStorage.getItem(WIDTH_KEY)).toBeNull();
+
+    pointer('pointerdown');
+    pointer('pointermove', 500);
+    pointer('pointerup');
+    expect(sidebar.style.width).toBe('500px');
+    expect(localStorage.getItem(WIDTH_KEY)).not.toBeNull();
+  });
+
+  it('resets to the default width on double-click', () => {
+    localStorage.setItem(WIDTH_KEY, '250');
+    setup();
+    expect(sidebar.style.width).toBe('250px');
+    pointer('dblclick');
+    expect(sidebar.style.width).toBe('400px');
+    expect(localStorage.getItem(WIDTH_KEY)).toBeNull();
   });
 });

@@ -10,7 +10,7 @@ DiffSanity is a Chrome extension (Manifest V3) for reviewing GitHub pull request
 - **Old and new line numbers** are shown side by side in the gutter.
 - **Syntax highlighting** follows GitHub's colours.
 - An **Azure DevOps / VS Code-style minimap** on the right shows where every change is. Click or drag it to jump.
-- **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree, with an icon that marks it as new, modified, deleted or renamed. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it, or hide it with the button at the top left.
+- **All the PR's files in one tab.** A file list on the left, like GitHub's, shows every changed file in a folder tree, with an icon that marks it as new, modified, deleted or renamed. Click a file to open it in place, filter by name, or press **Alt+↓** / **Alt+↑** for the next or previous file. Drag the edge to resize it (double-click the edge to reset), or hide it with the button at the top left.
 - **Comments go through GitHub.** Hover a line and click **+** to open GitHub's own comment box for it in the PR tab. Existing review threads appear as purple markers in the gutter and on the minimap. Click one to jump to the conversation.
 - **A clear toolbar** shows the file's path, whether it is a **New file**, **Modified**, **Deleted** or **Renamed**, a +/− change bar, the PR and the commits being compared.
 - **Approve from the review tab.** The **Approve** button in the toolbar switches to the PR tab and opens GitHub's own review box with *Approve* already selected. You can add a note, then press GitHub's **Submit review**. DiffSanity never submits it for you.

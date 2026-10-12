@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "DiffSanity",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Bring sanity back to GitHub diffs. Review pull requests with whole-file diffs, a file list, syntax highlighting and a minimap.",
   "icons": {
     "16": "icons/icon-16.png",

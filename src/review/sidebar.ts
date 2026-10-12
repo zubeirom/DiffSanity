@@ -1,5 +1,8 @@
 /** Width and visibility of the file sidebar, remembered across review tabs like the theme. */
-const WIDTH_KEY = 'diffsanity.sidebarWidth';
+// A new key, because the old one also held widths saved by plain clicks on the edge,
+// which kept the old 300px default after the default grew.
+const WIDTH_KEY = 'diffsanity.sidebarWidth.v2';
+const LEGACY_WIDTH_KEY = 'diffsanity.sidebarWidth';
 const HIDDEN_KEY = 'diffsanity.sidebarHidden';
 const DEFAULT_WIDTH = 400;
 const MIN_WIDTH = 160;
@@ -30,7 +33,8 @@ function write(key: string, value: string | null): void {
 }
 
 /**
- * Shows the sidebar, lets the user drag `resizer` to resize it and `toggle` to hide it.
+ * Shows the sidebar, lets the user drag `resizer` to resize it (double-click resets it)
+ * and `toggle` to hide it.
  */
 export function setupSidebar(sidebar: HTMLElement, resizer: HTMLElement, toggle: HTMLButtonElement): void {
   const setWidth = (width: number) => {
@@ -43,6 +47,7 @@ export function setupSidebar(sidebar: HTMLElement, resizer: HTMLElement, toggle:
     toggle.title = hidden ? 'Show changed files' : 'Hide changed files';
   };
 
+  write(LEGACY_WIDTH_KEY, null);
   setWidth(Number(read(WIDTH_KEY) ?? DEFAULT_WIDTH));
   toggle.hidden = false;
   setHidden(read(HIDDEN_KEY) === 'true');
@@ -52,22 +57,29 @@ export function setupSidebar(sidebar: HTMLElement, resizer: HTMLElement, toggle:
     write(HIDDEN_KEY, sidebar.hidden ? 'true' : null);
   });
 
+  let resized = false;
   resizer.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
     event.preventDefault();
+    resized = false;
     resizer.setPointerCapture(event.pointerId);
     resizer.classList.add('ds-dragging');
   });
   resizer.addEventListener('pointermove', (event) => {
     if (!resizer.hasPointerCapture(event.pointerId)) return;
+    resized = true;
     setWidth(event.clientX - sidebar.getBoundingClientRect().left);
   });
   const stop = (event: PointerEvent) => {
     if (!resizer.hasPointerCapture(event.pointerId)) return;
     resizer.releasePointerCapture(event.pointerId);
     resizer.classList.remove('ds-dragging');
-    write(WIDTH_KEY, String(sidebar.getBoundingClientRect().width));
+    if (resized) write(WIDTH_KEY, String(sidebar.getBoundingClientRect().width));
   };
   resizer.addEventListener('pointerup', stop);
   resizer.addEventListener('pointercancel', stop);
+  resizer.addEventListener('dblclick', () => {
+    write(WIDTH_KEY, null);
+    setWidth(DEFAULT_WIDTH);
+  });
 }
