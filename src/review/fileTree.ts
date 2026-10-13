@@ -1,4 +1,4 @@
-import type { PullRequestFile } from '../shared/types';
+import type { FileStatus, PullRequestFile } from '../shared/types';
 import { STATUS_LABELS, statusIcon } from './fileStatus';
 import { octicon } from './icons';
 
@@ -94,6 +94,16 @@ function describeFile(file: PullRequestFile): string {
   return lines.join('\n');
 }
 
+/** Draws a file's status icon into its slot in the row, or leaves the slot empty while the status is unknown. */
+function renderStatus(slot: HTMLElement, status: FileStatus | undefined): void {
+  if (!status) return;
+  slot.dataset.status = status;
+  slot.title = STATUS_LABELS[status];
+  slot.setAttribute('role', 'img');
+  slot.setAttribute('aria-label', STATUS_LABELS[status]);
+  slot.replaceChildren(statusIcon(status, 14));
+}
+
 /**
  * Sidebar list of the pull request's changed files, shown as a folder tree like GitHub's.
  * Keyboard: arrow keys move between rows, Left/Right fold folders, Enter opens a file.
@@ -103,6 +113,7 @@ export class FileTree {
   private readonly count = element('span', 'ds-files-count');
   private readonly tree = element('ul', 'ds-tree');
   private readonly empty = element('p', 'ds-files-empty', 'No files match this filter.');
+  /** The files in the pull request's order, by path. */
   private readonly byPath: Map<string, PullRequestFile>;
   private readonly collapsed = new Set<string>();
   private shown: PullRequestFile[] = [];
@@ -111,7 +122,7 @@ export class FileTree {
 
   constructor(
     host: HTMLElement,
-    private readonly files: readonly PullRequestFile[],
+    files: readonly PullRequestFile[],
     private readonly onSelect: (file: PullRequestFile) => void,
   ) {
     this.byPath = new Map(files.map((file) => [file.path, file]));
@@ -151,18 +162,36 @@ export class FileTree {
     this.updateTabStop();
   }
 
+  /** Shows a file's status once it is known, e.g. when it was worked out after the list was drawn. */
+  setStatus(path: string, status: FileStatus): void {
+    const file = this.byPath.get(path);
+    if (!file || file.status === status) return;
+    const updated = { ...file, status };
+    this.byPath.set(path, updated);
+    const row = this.fileRow(path);
+    if (!row) return;
+    row.title = describeFile(updated);
+    const slot = row.querySelector<HTMLElement>('.ds-tree-status');
+    if (slot) renderStatus(slot, status);
+  }
+
   /** The file before or after `path` in the tree, among the files the filter shows. */
   neighbour(path: string, step: 1 | -1): PullRequestFile | undefined {
     const index = this.shown.findIndex((file) => file.path === path);
-    return index < 0 ? undefined : this.shown[index + step];
+    return index < 0 ? undefined : this.byPath.get(this.shown[index + step]?.path ?? '');
+  }
+
+  private fileRow(path: string): HTMLElement | undefined {
+    return [...this.tree.querySelectorAll<HTMLElement>('.ds-tree-file')].find((row) => row.dataset.path === path);
   }
 
   private render(): void {
     const filter = this.filterInput.value;
-    const nodes = buildFileTree(this.files.filter((file) => matchesFilter(file, filter)));
+    const files = [...this.byPath.values()];
+    const nodes = buildFileTree(files.filter((file) => matchesFilter(file, filter)));
     this.shown = treeOrder(nodes);
     this.tree.replaceChildren(...nodes.map((node) => this.renderNode(node, 1, !!filter.trim())));
-    const total = this.files.length;
+    const total = files.length;
     this.count.textContent = this.shown.length === total ? String(total) : `${this.shown.length} of ${total}`;
     this.count.title = `${this.shown.length} of ${total} file${total === 1 ? '' : 's'} shown`;
     this.empty.hidden = this.shown.length > 0;
@@ -190,13 +219,7 @@ export class FileTree {
       row.dataset.path = file.path;
       row.title = describeFile(file);
       const status = element('span', 'ds-tree-status');
-      if (file.status) {
-        status.dataset.status = file.status;
-        status.title = STATUS_LABELS[file.status];
-        status.setAttribute('role', 'img');
-        status.setAttribute('aria-label', STATUS_LABELS[file.status]);
-        status.append(statusIcon(file.status, 14));
-      }
+      renderStatus(status, file.status);
       row.append(status, element('span', 'ds-tree-name', node.name));
       if (file.additions !== undefined && file.deletions !== undefined) {
         const delta = element('span', 'ds-tree-delta');

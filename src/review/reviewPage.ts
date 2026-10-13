@@ -14,8 +14,15 @@ import { GitHubComments } from './comments';
 import { computeFileDiff, findChangeBlocks, splitLines } from './diff';
 import { diffstatBlocks } from './diffstat';
 import { STATUS_LABELS, statusIcon } from './fileStatus';
-import { FileTree } from './fileTree';
-import { listSourceTabFiles, loadFileContents, loadPullRequestFiles, LoadError, type FileContents } from './fileSource';
+import { buildFileTree, FileTree, treeOrder } from './fileTree';
+import {
+  listSourceTabFiles,
+  loadFileContents,
+  loadPullRequestFiles,
+  LoadError,
+  lookUpMissingStatuses,
+  type FileContents,
+} from './fileSource';
 import { octicon } from './icons';
 import { loadLayout, parseLayout, saveLayout, type DiffLayout } from './layout';
 import { Minimap } from './minimap';
@@ -314,6 +321,8 @@ class ReviewPage {
       this.tree = new FileTree(element('#ds-sidebar'), files, (file) => void this.show(file));
       this.tree.setActive(this.file.path);
       setupSidebar(element('#ds-sidebar'), element('#ds-resizer'), element<HTMLButtonElement>('#ds-sidebar-toggle'));
+      const tree = this.tree;
+      void lookUpMissingStatuses(this.session, treeOrder(buildFileTree(files)), (file, status) => tree.setStatus(file.path, status));
     }
     await first;
   }
@@ -356,6 +365,7 @@ class ReviewPage {
         // Later files skip looking up the commits again.
         this.session = { ...this.session, ...loaded.revisions };
         element('#ds-pr').title = pullRequestTitle(this.session, this.session);
+        this.tree?.setStatus(request.path, loaded.status);
         return loaded;
       });
       contents.catch(() => this.contents.delete(request.path));

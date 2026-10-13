@@ -1,6 +1,7 @@
 import { extractPullRequestFiles } from '../content/github';
 import { extractRevisionsFromText, pullRequestFilesUrl, rawFileUrl, toPullRequestFileList } from '../shared/githubContext';
 import type {
+  FetchMethod,
   FetchTextResponse,
   FileStatus,
   Message,
@@ -22,21 +23,23 @@ export interface FileContents {
 /**
  * Fetches a GitHub URL. The review page's own request carries the user's GitHub session (the extension
  * has host permissions); if that is refused, the request is retried from the GitHub tab DiffSanity was opened from.
+ * When both fail, the GitHub tab's HTTP status is preferred, as that request certainly had the user's session.
  */
-async function fetchText(url: string, sourceTabId?: number): Promise<FetchTextResponse> {
+async function fetchText(url: string, sourceTabId?: number, method: FetchMethod = 'GET'): Promise<FetchTextResponse> {
   let status = 0;
   try {
-    const response = await fetch(url, { credentials: 'include' });
-    if (response.ok) return { ok: true, status: response.status, text: await response.text() };
+    const response = await fetch(url, { method, credentials: 'include' });
+    if (response.ok) return { ok: true, status: response.status, text: method === 'GET' ? await response.text() : undefined };
     status = response.status;
   } catch {
     // Network/CORS failure; fall through to the tab fallback.
   }
   if (sourceTabId !== undefined) {
     try {
-      const message: Message = { type: 'diffsanity:fetchText', url };
+      const message: Message = { type: 'diffsanity:fetchText', url, method };
       const response = (await chrome.tabs.sendMessage(sourceTabId, message)) as FetchTextResponse | undefined;
       if (response?.ok) return response;
+      if (response?.status) status = response.status;
     } catch {
       // Source tab closed or navigated away from GitHub.
     }
@@ -101,7 +104,7 @@ export async function listSourceTabFiles(request: ReviewRequest): Promise<PullRe
 /**
  * Lists every changed file of the pull request. The GitHub tab DiffSanity was opened from is asked first. When it
  * lacks GitHub's full list (e.g. it reached "Files changed" without a page load), the page is fetched instead,
- * keeping the old paths of renamed files that the tab rendered.
+ * keeping the old paths and statuses of the files the tab rendered. Statuses can still be missing; see `lookUpMissingStatuses`.
  */
 export async function loadPullRequestFiles(request: ReviewRequest): Promise<PullRequestFile[]> {
   const fromTab = await listSourceTabFiles(request);
@@ -111,8 +114,59 @@ export async function loadPullRequestFiles(request: ReviewRequest): Promise<Pull
     ? extractPullRequestFiles(new DOMParser().parseFromString(page.text, 'text/html'), request.pr)
     : NO_FILES;
   if (!fetched.complete) return fromTab.files.length ? fromTab.files : fetched.files;
-  const oldPaths = new Map(fromTab.files.map((file) => [file.path, file.oldPath]));
-  return fetched.files.map((file) => ({ ...file, oldPath: file.oldPath ?? oldPaths.get(file.path) }));
+  const fromTabByPath = new Map(fromTab.files.map((file) => [file.path, file]));
+  return fetched.files.map((file) => {
+    const rendered = fromTabByPath.get(file.path);
+    return { ...file, oldPath: file.oldPath ?? rendered?.oldPath, status: file.status ?? rendered?.status };
+  });
+}
+
+/** Most files whose status is looked up in the commits, so a huge pull request cannot flood GitHub with requests. */
+const MAX_STATUS_LOOKUPS = 500;
+const STATUS_LOOKUP_CONCURRENCY = 6;
+
+/**
+ * Works out a file's status from the commits themselves: a file missing at the base was added, one missing at the
+ * head was deleted. Only a 404 counts as missing, and only when the other side loaded, so a file that could not be
+ * reached (signed out, network error) is never mislabelled. Undefined when it cannot be told.
+ */
+async function lookUpFileStatus(request: ReviewRequest & Required<Revisions>, file: PullRequestFile): Promise<FileStatus | undefined> {
+  const { origin, owner, repo, baseSha, headSha, sourceTabId } = request;
+  const [base, head] = await Promise.all([
+    fetchText(rawFileUrl(origin, owner, repo, baseSha, file.oldPath ?? file.path), sourceTabId, 'HEAD'),
+    fetchText(rawFileUrl(origin, owner, repo, headSha, file.path), sourceTabId, 'HEAD'),
+  ]);
+  if (base.ok && head.ok) return file.oldPath && file.oldPath !== file.path ? 'renamed' : 'modified';
+  if (head.ok && base.status === 404) return 'added';
+  if (base.ok && head.status === 404) return 'deleted';
+  return undefined;
+}
+
+/**
+ * Fills in the status of files GitHub's page did not give one (e.g. after client-side navigation), by checking which
+ * side of the diff each file exists on. Files are looked up in the given order; `onStatus` is called as each is known.
+ */
+export async function lookUpMissingStatuses(
+  request: ReviewRequest,
+  files: readonly PullRequestFile[],
+  onStatus: (file: PullRequestFile, status: FileStatus) => void,
+): Promise<void> {
+  const queue = files.filter((file) => !file.status).slice(0, MAX_STATUS_LOOKUPS);
+  if (!queue.length) return;
+  let revisions: Required<Revisions>;
+  try {
+    revisions = await resolveRevisions(request);
+  } catch {
+    return;
+  }
+  const target = { ...request, ...revisions };
+  const work = async () => {
+    for (let file = queue.shift(); file; file = queue.shift()) {
+      const status = await lookUpFileStatus(target, file);
+      if (status) onStatus(file, status);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(STATUS_LOOKUP_CONCURRENCY, queue.length) }, work));
 }
 
 function looksBinary(text: string): boolean {

@@ -91,6 +91,29 @@ describe('FileTree', () => {
     expect(onSelect).toHaveBeenCalledWith(FILES[0]);
   });
 
+  it('shows a status found later, keeps it after redrawing and opens the file with it', async () => {
+    tree.setStatus('test/Z.ts', 'added');
+    const slot = row('test/Z.ts').querySelector<HTMLElement>('.ds-tree-status')!;
+    expect(slot.dataset.status).toBe('added');
+    expect(slot.getAttribute('aria-label')).toBe('New file');
+    expect(slot.querySelectorAll('svg')).toHaveLength(1);
+    expect(row('test/Z.ts').title).toContain('New file');
+
+    vi.useFakeTimers();
+    try {
+      const input = host.querySelector<HTMLInputElement>('.ds-files-filter')!;
+      input.value = 'Z';
+      input.dispatchEvent(new Event('input'));
+      await vi.advanceTimersByTimeAsync(150);
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(row('test/Z.ts').querySelector<HTMLElement>('.ds-tree-status')!.dataset.status).toBe('added');
+    row('test/Z.ts').click();
+    expect(onSelect).toHaveBeenCalledWith({ path: 'test/Z.ts', status: 'added' });
+    expect(FILES[5].status).toBeUndefined();
+  });
+
   it('folds folders on click and unfolds them to show the active file', () => {
     folder('src/vs/editor').click();
     expect(folder('src/vs/editor').getAttribute('aria-expanded')).toBe('false');

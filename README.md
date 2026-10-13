@@ -109,6 +109,7 @@ flowchart LR
 1. **Commits.** The commits are read from the PR page when the button is clicked, from `start_commit_oid`/`base_commit_oid` and `end_commit_oid` in GitHub's lazy-load URLs. The base is the **merge base** (or the start of a selected commit range), which is what GitHub diffs against, not the base-branch tip. If they are missing, the review page fetches the PR page HTML itself. As a last resort it uses the public REST API (`pulls/N`, then `compare` for the merge base).
 2. **Contents.** Both files are fetched from `{origin}/{owner}/{repo}/raw/{sha}/{path}`, where the origin is `https://github.com` or `https://<enterprise>.ghe.com`. Renamed files use the old path for the base. If the review page's own request is refused, it asks the content script in the GitHub tab to fetch the file from the page's origin. That request sends cookies to the page's origin only, because the raw host it redirects to (with a token in the URL) refuses cross-origin requests that carry cookies.
 3. **Status.** A 404 on one side means the file was added or deleted. Binary files (any NUL character in the first 8 KB) are rejected with a message.
+4. **File list status.** The file list takes each file's status from GitHub's page. When GitHub's page does not say (for example after reaching *Files changed* without a page load), the review page checks with `HEAD` requests to the same raw URLs whether the file exists at the base and head commits: missing at the base means new, missing at the head means deleted, present on both means modified (or renamed when the old path is known). Only a 404 counts as missing, and only when the other side loaded, so a file that cannot be reached is left without an icon instead of being mislabelled. At most 500 files are checked, 6 at a time.
 
 ## GitHub DOM dependencies
 
@@ -137,7 +138,7 @@ The selectors rely on semantic data attributes and stable link shapes rather tha
 
 ## Tested
 
-Unit tests cover URL and commit parsing, the classic and React header fixtures, button idempotency, the diff model, syntax line-splitting, side-by-side row pairing and the minimap maths. They also cover reading diff lines and threads in both views, opening the comment box and the review box with *Approve* selected, and mapping GitHub's line keys onto the full file. `npm run e2e` checks these against live github.com:
+Unit tests cover URL and commit parsing, the classic and React header fixtures, button idempotency, the diff model, syntax line-splitting, side-by-side row pairing and the minimap maths. They also cover reading diff lines and threads in both views, opening the comment box and the review box with *Approve* selected, mapping GitHub's line keys onto the full file, and working out a file's status from the commits (directly, through the GitHub tab, and when the files cannot be reached). That status check was also run against live github.com on a 70-file PR and matched GitHub's own status for every new, modified, deleted and renamed file. `npm run e2e` checks these against live github.com:
 
 - A 15-file PR: one button per header, the review renders the whole file with line numbers, highlighting and changes, and a minimap click scrolls.
 - A 2,745-line file renders in about 0.5 s, and clicking the bottom of the minimap reaches the end of the file.

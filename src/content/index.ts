@@ -1,5 +1,6 @@
 import { isAllowedOrigin, isPullRequestFilesPage, parsePullRequestUrl } from '../shared/githubContext';
 import type {
+  FetchMethod,
   FetchTextResponse,
   GitHubLineInfo,
   GoToLineResponse,
@@ -71,11 +72,12 @@ function scheduleScan(): void {
  * Cookies go to the page's origin only: `/raw/` redirects to a raw host (e.g. `raw.<enterprise>.ghe.com`)
  * with a token in the URL, and that host refuses cross-origin requests that carry cookies.
  */
-async function fetchText(url: string): Promise<FetchTextResponse> {
+async function fetchText(url: string, method: FetchMethod): Promise<FetchTextResponse> {
   if (!url.startsWith(`${location.origin}/`)) return { ok: false, status: 0 };
   try {
-    const response = await fetch(url, { credentials: 'same-origin' });
-    return { ok: response.ok, status: response.status, text: response.ok ? await response.text() : undefined };
+    const response = await fetch(url, { method, credentials: 'same-origin' });
+    const text = response.ok && method === 'GET' ? await response.text() : undefined;
+    return { ok: response.ok, status: response.status, text };
   } catch {
     return { ok: false, status: 0 };
   }
@@ -95,7 +97,7 @@ function showsPullRequest({ owner, repo, pr }: PullRequestRef): boolean {
 function handleMessage(message: Message, _sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void): boolean {
   switch (message.type) {
     case 'diffsanity:fetchText':
-      fetchText(message.url).then(sendResponse);
+      fetchText(message.url, message.method === 'HEAD' ? 'HEAD' : 'GET').then(sendResponse);
       return true;
     case 'diffsanity:lineInfo': {
       const info: GitHubLineInfo = showsPullRequest(message.pullRequest)

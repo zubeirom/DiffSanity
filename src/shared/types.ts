@@ -111,7 +111,8 @@ export interface OpenApprovalResponse {
 /** Messages exchanged between the content script, background worker and review page. */
 export type Message =
   | { type: 'diffsanity:open'; request: ReviewRequest; background: boolean }
-  | { type: 'diffsanity:fetchText'; url: string }
+  /** `HEAD` only asks whether the URL exists, without downloading it. */
+  | { type: 'diffsanity:fetchText'; url: string; method?: FetchMethod }
   | { type: 'diffsanity:lineInfo'; pullRequest: PullRequestRef; anchor: string }
   | { type: 'diffsanity:goToLine'; pullRequest: PullRequestRef; anchor: string; lineKey: string; startComment: boolean }
   /** Answered with the pull request's `PullRequestFileList` (no files when the tab shows something else). */
@@ -120,6 +121,8 @@ export type Message =
   | { type: 'diffsanity:revealFile'; pullRequest: PullRequestRef; anchor: string }
   /** Opens GitHub's review box with "Approve" selected; answered with `OpenApprovalResponse`. The user submits it. */
   | { type: 'diffsanity:openApproval'; pullRequest: PullRequestRef };
+
+export type FetchMethod = 'GET' | 'HEAD';
 
 export interface FetchTextResponse {
   ok: boolean;
